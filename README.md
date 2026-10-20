@@ -1,6 +1,19 @@
 # STEAM AR - Physical Science Storybook Module
 ### *Interactive Science Education through Augmented Reality & Narrative Storytelling*
 
+<br/>
+
+![Unity](https://img.shields.io/badge/UNITY-2022.3.62F3%20LTS-black?style=for-the-badge&logo=unity&logoColor=white)
+![Vuforia Engine](https://img.shields.io/badge/VUFORIA%20ENGINE-11.4.4-0080C6?style=for-the-badge)
+![C#](https://img.shields.io/badge/C%23-.NET%20STANDARD%202.1-239120?style=for-the-badge)  
+![Platform](https://img.shields.io/badge/PLATFORM-ANDROID%20%7C%20IOS%20(MOBILE%20AR)-3DDC84?style=for-the-badge)
+![Firebase](https://img.shields.io/badge/FIREBASE-REALTIME%20DATABASE-FFA611?style=for-the-badge&logo=firebase&logoColor=white)  
+![Google Sheets](https://img.shields.io/badge/GOOGLE%20SHEETS-APPS%20SCRIPT%20API-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)
+![Git LFS](https://img.shields.io/badge/GIT%20LFS-ENABLED-F05032?style=for-the-badge&logo=git-lfs&logoColor=white)
+![Figma](https://img.shields.io/badge/FIGMA-UI%2FUX%20DESIGN-F24E1E?style=for-the-badge&logo=figma&logoColor=white)
+
+---
+
 **Research Component:** IT22177100 | **Target Platform:** Android (Mobile / Tablet)  
 **Target Audience:** Grade 4 & Grade 5 Students (Sri Lankan Primary Curriculum / *Parisaraya* Syllabus)
 
