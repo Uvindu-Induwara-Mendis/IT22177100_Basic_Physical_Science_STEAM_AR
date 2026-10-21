@@ -1,8 +1,17 @@
 using UnityEngine;
 using TMPro;
 
+// =========================================================================================
+// APP-WIDE: MAIN UI & NAVIGATION MANAGER
+// =========================================================================================
+// Context: Top-level controller for 2D UI panels and overall app flow:
+// - Initial Language Selection (English / Sinhala) and live language toggling
+// - Student Login (Name & Grade 4/5 selection)
+// - Home Dashboard, All Lessons menu, Tutorial, and AR Scanner navigation
+// - Manages AR Camera state and toggles Vuforia tracking observers to prevent accidental triggers.
 public class UIManager : MonoBehaviour
 {
+    // --- Primary Navigation Panels ---
     [Header("UI Panels")]
     public GameObject languagePanel; 
     public GameObject loginPanel;
@@ -11,20 +20,24 @@ public class UIManager : MonoBehaviour
     public GameObject arScannerPanel; 
     public GameObject allLessonsPanel;
     
+    // --- AR Activity & Narrative Flow Panels ---
     [Header("The New AR Flow Panels")]
     public GameObject arQuizUIPanel; 
     public GameObject storyRevealPanel;
     
+    // --- Story Panels from Other Lessons ---
     [Header("Duplicate Story Panels")]
-    [Tooltip("Drag the story reveal panels for Lesson 2 and 3 here so they close when going Home!")]
+    [Tooltip("Story reveal panels for Lesson 2 and 3 closed when returning Home")]
     public GameObject[] extraStoryPanels;
 
+    // --- Student Login & Greeting Displays ---
     [Header("Login & Feedback Texts")]
     public TMP_InputField studentNameInput;
     public TextMeshProUGUI welcomeTextEnglish; 
     public TextMeshProUGUI welcomeTextSinhala; 
     public TextMeshProUGUI quizFeedbackText; 
 
+    // --- Vuforia AR Camera Object ---
     [Header("AR Camera Setup")]
     public GameObject arCamera; 
 
@@ -32,79 +45,65 @@ public class UIManager : MonoBehaviour
 
     void Start()
     {
+        // Start app on Language Selection screen
         ShowPanel(languagePanel);
     }
 
-    // --- LANGUAGE SELECTION LOGIC ---
+    // --- Language Selection Callbacks ---
     public void OnEnglishSelected() { temporaryLanguageChoice = "English"; }
     public void OnSinhalaSelected() { temporaryLanguageChoice = "Sinhala"; }
 
     public void OnConfirmLanguageClicked()
     {
         ApplyLanguageSettings();
-        
-        // Move to the Login Screen
         ShowPanel(loginPanel);
     }
 
-    // --- MID-GAME LANGUAGE SWITCHING (NEW) ---
+    // Mid-game language toggle button
     public void ForceLanguageEnglish()
     {
         temporaryLanguageChoice = "English";
         ApplyLanguageSettings();
-        Debug.Log("Forced language back to English");
     }
 
     public void ForceLanguageSinhala()
     {
         temporaryLanguageChoice = "Sinhala";
         ApplyLanguageSettings();
-        Debug.Log("Forced language to Sinhala");
     }
     
     public void ToggleLanguage()
     {
         HapticFeedbackManager.TriggerSubtleHaptic(30L);
-        
         string currentLang = PlayerPrefs.GetString("Language", "English");
-        
-        if (currentLang == "English")
-        {
-            temporaryLanguageChoice = "Sinhala";
-        }
-        else
-        {
-            temporaryLanguageChoice = "English";
-        }
-        
+        temporaryLanguageChoice = (currentLang == "English") ? "Sinhala" : "English";
         ApplyLanguageSettings();
-        Debug.Log("Toggled language to: " + temporaryLanguageChoice);
     }
 
+    // Saves language to PlayerPrefs and notifies all LocalizedText components
     private void ApplyLanguageSettings()
     {
-        // 1. Save the new language choice to memory
         PlayerPrefs.SetString("Language", temporaryLanguageChoice);
         PlayerPrefs.Save();
 
-        // 2. Find EVERY LocalizedText script in the entire game and force them to update instantly!
+        // Broadcast language change to all active and inactive text objects
         LocalizedText[] allTextManagers = FindObjectsOfType<LocalizedText>(true);
         foreach (LocalizedText textManager in allTextManagers)
         {
             textManager.UpdateLanguage();
         }
 
-        // 3. Analytics
         if (CircuitAnalyticsManager.Instance != null)
             CircuitAnalyticsManager.Instance.SetLanguage(temporaryLanguageChoice);
     }
 
-    // --- LOGIN LOGIC ---
+    // --- Student Profile Login Handlers ---
     public void OnGrade4LoginClicked() 
     { 
         HapticFeedbackManager.TriggerSubtleHaptic(30L);
         SaveStudentData(4); 
     }
+
     public void OnGrade5LoginClicked() 
     { 
         HapticFeedbackManager.TriggerSubtleHaptic(30L);
@@ -121,7 +120,6 @@ public class UIManager : MonoBehaviour
         PlayerPrefs.Save(); 
 
         if (welcomeTextEnglish != null) welcomeTextEnglish.text = "Hello, " + nameToSave + "!";
-
         if (welcomeTextSinhala != null) 
         {
             welcomeTextSinhala.text = "wdhqfndajka <font=\"LiberationSans SDF\">" + nameToSave + "!</font>"; 
@@ -130,7 +128,7 @@ public class UIManager : MonoBehaviour
         ShowPanel(homePanel);
     }
 
-    // --- HOME MENU & TUTORIAL LOGIC ---
+    // --- Dashboard & Navigation Buttons ---
     public void OnHomeClicked() 
     { 
         HapticFeedbackManager.TriggerSubtleHaptic(30L);
@@ -152,7 +150,6 @@ public class UIManager : MonoBehaviour
     public void OnQuitClicked() 
     { 
         HapticFeedbackManager.TriggerSubtleHaptic(30L);
-        Debug.Log("Quit App Clicked");
         Application.Quit(); 
     }
     
@@ -162,7 +159,7 @@ public class UIManager : MonoBehaviour
         ShowPanel(arScannerPanel); 
     }
 
-    // --- AR QUIZ LOGIC ---
+    // --- AR Quiz Panel Transitions ---
     public void StartARQuiz()
     {
         if (quizFeedbackText != null) quizFeedbackText.text = ""; 
@@ -185,10 +182,9 @@ public class UIManager : MonoBehaviour
 
     public void OnNextScanClicked() { ShowPanel(arScannerPanel); }
 
-    // --- NEW FUNCTION TO CLOSE THE PANEL ---
+    // Closes storybook panels and finalizes session analytics
     public void CloseStoryPanel()
     {
-        // ── Analytics: user is leaving the lesson — submit if not already done ──
         if (CircuitAnalyticsManager.Instance != null)
             CircuitAnalyticsManager.Instance.SubmitSession();
 
@@ -203,60 +199,49 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // --- MASTER PANEL CONTROLLER ---
+    // --- Master Panel Switcher ---
+    // Activates target panel, hides others, and configures AR Camera & Vuforia tracking state
     private void ShowPanel(GameObject panelToShow)
     {
-        if(languagePanel != null) languagePanel.SetActive(false); 
-        if(loginPanel != null) loginPanel.SetActive(false);
-        if(homePanel != null) homePanel.SetActive(false);
-        if(tutorialPanel != null) tutorialPanel.SetActive(false); 
-        if(arScannerPanel != null) arScannerPanel.SetActive(false);
-        if(allLessonsPanel != null) allLessonsPanel.SetActive(false);
-        if(arQuizUIPanel != null) arQuizUIPanel.SetActive(false);
-        if(storyRevealPanel != null) storyRevealPanel.SetActive(false);
+        if (languagePanel != null) languagePanel.SetActive(false); 
+        if (loginPanel != null) loginPanel.SetActive(false);
+        if (homePanel != null) homePanel.SetActive(false);
+        if (tutorialPanel != null) tutorialPanel.SetActive(false); 
+        if (arScannerPanel != null) arScannerPanel.SetActive(false);
+        if (allLessonsPanel != null) allLessonsPanel.SetActive(false);
+        if (arQuizUIPanel != null) arQuizUIPanel.SetActive(false);
+        if (storyRevealPanel != null) storyRevealPanel.SetActive(false);
         
-        // Hide any extra story panels explicitly linked in the inspector
         if (extraStoryPanels != null)
         {
             foreach (GameObject extraPanel in extraStoryPanels)
             {
                 if (extraPanel != null && extraPanel != panelToShow)
-                {
                     extraPanel.SetActive(false);
-                }
             }
         }
         
-        // --- Force hide ALL duplicate story panels in the scene (Catch-all) ---
+        // Hide any story manager instances active in the hierarchy
         StoryUIManager[] allStories = FindObjectsOfType<StoryUIManager>(true);
-        foreach(var story in allStories) 
+        foreach (var story in allStories) 
         {
             if (story != null && story.gameObject != panelToShow)
-            {
                 story.gameObject.SetActive(false);
-            }
         }
 
-        if(panelToShow != null) panelToShow.SetActive(true);
+        if (panelToShow != null) panelToShow.SetActive(true);
 
+        // Turn AR Camera on only for camera/AR-dependent panels
         if (arCamera != null)
         {
-            // NEW FIX: Added "|| panelToShow == storyRevealPanel" right here!
             if (panelToShow == arScannerPanel || panelToShow == arQuizUIPanel || panelToShow == storyRevealPanel)
-            {
                 arCamera.SetActive(true);
-            }
             else
-            {
                 arCamera.SetActive(false);
-            }
         }
 
-        // --- PREVENT PREMATURE LESSON TRIGGERS ---
-        // Keep tracking ON for the scanner and quiz. Turn it OFF for the story reveal panel, 
-        // so the camera feed stays active but doesn't accidentally trigger the next lesson!
+        // Enable Vuforia marker tracking only during scanner and quiz phases to prevent premature triggers
         bool shouldTrack = (panelToShow == arScannerPanel || panelToShow == arQuizUIPanel);
-        
         Vuforia.ObserverBehaviour[] allTrackers = FindObjectsOfType<Vuforia.ObserverBehaviour>(true);
         foreach (Vuforia.ObserverBehaviour tracker in allTrackers)
         {

@@ -1,16 +1,24 @@
 using UnityEngine;
 using UnityEngine.Events;
 
+// =========================================================================================
+// SIMPLE MACHINES: PULLEY AR SCENE - DOWNWARD SWIPE GESTURE DETECTOR
+// =========================================================================================
+// Context: Detects when the student swipes downward on the touchscreen to pull the pulley rope.
+// Hides the instructional swipe arrow UI affordance, triggers tactile haptic feedback,
+// and invokes PulleyManager.LiftCrate() via the OnSwipeDown UnityEvent.
 public class PulleySwipeManager : MonoBehaviour
 {
+    // --- UI Affordance & Swipe Tuning ---
     [Header("UI Affordance")]
-    [Tooltip("Drag your animated SwipeIndicatorArrow UI image here!")]
+    [Tooltip("Animated arrow prompt indicating user should swipe down")]
     public GameObject swipeArrowUI;
 
     [Header("Swipe Settings")]
-    [Tooltip("How far the finger must drag to count as a swipe")]
+    [Tooltip("Minimum pixel distance required to register as an intentional swipe")]
     public float minSwipeDistance = 50f; 
 
+    // --- Action Event (Linked to PulleyManager.LiftCrate) ---
     [Header("What happens on swipe?")]
     public UnityEvent OnSwipeDown;
 
@@ -19,7 +27,7 @@ public class PulleySwipeManager : MonoBehaviour
 
     void Update()
     {
-        // Only look for single finger touches
+        // Track single-finger touch gesture
         if (Input.touchCount == 1)
         {
             Touch touch = Input.GetTouch(0);
@@ -36,25 +44,21 @@ public class PulleySwipeManager : MonoBehaviour
         }
     }
 
+    // Evaluates touch delta to verify it was a predominantly downward swipe
     void CheckSwipe()
     {
-        // Calculate vertical distance (start Y minus end Y is positive if swiping DOWN)
         float verticalDistance = touchStartPos.y - touchEndPos.y; 
         float horizontalDistance = Mathf.Abs(touchStartPos.x - touchEndPos.x);
 
-        // Make sure it's a downward swipe, it's long enough, and it's mostly vertical (not horizontal)
+        // Verify downward direction and vertical alignment
         if (verticalDistance > minSwipeDistance && verticalDistance > horizontalDistance)
         {
-            // 1. Hide the helpful arrow since the child figured it out!
             if (swipeArrowUI != null)
             {
                 swipeArrowUI.SetActive(false);
             }
 
-            // 2. Vibrate the phone!
             Handheld.Vibrate();
-
-            // 3. Trigger the Pulley Lift function!
             OnSwipeDown.Invoke();
         }
     }

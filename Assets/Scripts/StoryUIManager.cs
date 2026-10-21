@@ -2,36 +2,37 @@ using UnityEngine;
 using System.Collections;
 using TMPro;
 
+// =========================================================================================
+// SHARED UI: STORYBOOK NARRATIVE & TYPEWRITER SUBTITLE MANAGER
+// =========================================================================================
+// Context: Used across all AR lessons (Electric Circuits, Simple Machines, Electromagnets).
+// Displays bilingual subtitles (English / Sinhala) using an animated typewriter effect,
+// and plays matching narrative voiceovers based on user's language setting.
 public class StoryUIManager : MonoBehaviour
 {
+    // --- Audio & Subtitle Components ---
     [Header("Universal Audio & Text")]
     public AudioSource audioSource;
     public TextMeshProUGUI subtitleText_EN; 
     public TextMeshProUGUI subtitleText_SN; 
-    public float typingSpeed = 0.05f;
+    public float typingSpeed = 0.05f;        // Seconds per character in typewriter animation
 
     private Coroutine typingCoroutine;
 
-    // NOW ACCEPTS BOTH AUDIO CLIPS
+    // --- Plays Localized Voiceover & Animates Subtitles ---
+    // Chooses English or Sinhala clip from PlayerPrefs, then types out sentence
     public void PlayVoiceover(AudioClip clip_EN, AudioClip clip_SN, string sentence_EN, string sentence_SN)
     {
         if (audioSource != null)
         {
-            // Check what language is currently selected
             string currentLang = PlayerPrefs.GetString("Language", "English");
             
-            // Pick the correct clip based on language
             AudioClip clipToPlay = null;
             if (currentLang == "Sinhala" && clip_SN != null)
-            {
                 clipToPlay = clip_SN;
-            }
             else if (clip_EN != null)
-            {
-                clipToPlay = clip_EN; // Default to English
-            }
+                clipToPlay = clip_EN;
 
-            // Play it if we have one
             if (clipToPlay != null)
             {
                 audioSource.clip = clipToPlay;
@@ -40,10 +41,10 @@ public class StoryUIManager : MonoBehaviour
         }
 
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);
-        
         typingCoroutine = StartCoroutine(TypeSentence(sentence_EN, sentence_SN));
     }
 
+    // Coroutine typing out characters one by one
     private IEnumerator TypeSentence(string sentence_EN, string sentence_SN)
     {
         if (subtitleText_EN != null) subtitleText_EN.text = ""; 
@@ -67,6 +68,7 @@ public class StoryUIManager : MonoBehaviour
         }
     }
 
+    // Clears subtitle text and stops ongoing typing animation
     public void ClearText()
     {
         if (typingCoroutine != null) StopCoroutine(typingCoroutine);

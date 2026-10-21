@@ -2,45 +2,61 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 
+// =========================================================================================
+// LESSON 2 (ELECTROMAGNETS): 2D BLUEPRINT ASSEMBLY QUIZ
+// =========================================================================================
+// Context: Intermediate 2D quiz between Part 1 and Part 2. The student helps character Dasun
+// assemble an electromagnet by dragging 3 essential components onto a blueprint diagram:
+// - Iron Nail (magnetic core)
+// - Insulated Copper Wire (conductive coil)
+// - Dry Cell Battery (current source)
+// Rejects distractor/trick items (permanent magnet, yarn string, lightbulb) with educational voiceovers.
+// Upon connecting all 3 correct parts, unlocks the Next button to enter the final AR testing phase.
 public class ElectromagnetQuizManager : MonoBehaviour
 {
-    [Header("Scene Containers (The Single-Scene Flow!)")]
-    public GameObject currentQuizContainer; 
-    public GameObject finalARContainer;     
-    public GameObject firstARContainer; 
+    // --- Scene UI & AR Containers (Single-Scene Architecture) ---
+    [Header("Scene Containers")]
+    public GameObject currentQuizContainer;  // The 2D blueprint quiz canvas
+    public GameObject finalARContainer;      // Part 2 AR object container (electromagnet + draggable test items)
+    public GameObject firstARContainer;      // Part 1 AR object container
     public GameObject part1UIContainer; 
 
-    public ElectromagnetARManager arManager; 
+    public ElectromagnetARManager arManager; // Part 2 AR manager launched after this quiz
 
+    // --- UI Dialogue Connections ---
     [Header("UI Connections")]
-    public GameObject feedbackPanel; 
-    // NEW: We will force the old panel off so it doesn't get stuck!
-    public GameObject part1FeedbackPanel; 
+    public GameObject feedbackPanel;         // Subtitle dialogue box for this quiz
+    public GameObject part1FeedbackPanel;    // Previous panel forced off to prevent UI overlap
     public TextMeshProUGUI subtitleText;
 
+    // --- Audio Sources & Voiceovers ---
     [Header("Audio Sources")]
     public AudioSource voiceAudioSource;
     public AudioSource sfxAudioSource;
 
-    [Header("Voiceovers (Dasun)")]
-    public AudioClip introVoice;
-    public AudioClip successVoice;
-    public AudioClip trickMagnetVoice; 
-    public AudioClip trickStringVoice; 
-    public AudioClip trickBulbVoice;
+    [Header("Voiceovers")]
+    public AudioClip introVoice;             // "Let's help Dasun build an electromagnet..."
+    public AudioClip successVoice;           // "Excellent work! Now let's test our electromagnet..."
     
+    // Distractor / trick item feedback
+    public AudioClip trickMagnetVoice;       // Rejects permanent magnet
+    public AudioClip trickStringVoice;       // Rejects yarn/string
+    public AudioClip trickBulbVoice;         // Rejects lightbulb
+    
+    // Correct part placement feedback
     [Header("Correct Part Voiceovers")]
-    public AudioClip correctNailVoice;
-    public AudioClip correctWireVoice;
-    public AudioClip correctBatteryVoice;
+    public AudioClip correctNailVoice;       // Explains iron nail core
+    public AudioClip correctWireVoice;       // Explains conductive copper wire
+    public AudioClip correctBatteryVoice;    // Explains battery electrical current
 
     [Header("Sound Effects")]
     public AudioClip correctSnapSFX;
     public AudioClip errorBoopSFX;
 
+    // --- Assembly State ---
     [Header("Game State")]
-    public int partsConnected = 0;
-    public GameObject nextButton; 
+    public int partsConnected = 0;           // Increments to 3 as correct parts are placed
+    public GameObject nextButton;            // Revealed when all 3 parts are connected
     
     private Coroutine hideTextCoroutine;
 
@@ -49,29 +65,25 @@ public class ElectromagnetQuizManager : MonoBehaviour
         if (nextButton != null) nextButton.SetActive(false);
         if (feedbackPanel != null) feedbackPanel.SetActive(false); 
         
-        // FIX: Force the old Part 1 text off the screen instantly!
+        // Hide leftover Part 1 panels
         if (part1FeedbackPanel != null) part1FeedbackPanel.SetActive(false);
-        
-        if (firstARContainer != null) 
-        {
-            firstARContainer.SetActive(false); 
-        }
+        if (firstARContainer != null) firstARContainer.SetActive(false); 
+        if (part1UIContainer != null) part1UIContainer.SetActive(false); 
 
+        // Ensure pinch-to-scale is attached to Part 2 AR models
         if (finalARContainer != null)
         {
-            // Add pinch to scale for Part 2 AR models
             if (finalARContainer.GetComponent<ARPinchToScale>() == null)
             {
                 ARPinchToScale scaler = finalARContainer.AddComponent<ARPinchToScale>();
                 scaler.objectToScale = finalARContainer.transform;
             }
         }
-
-        if (part1UIContainer != null) part1UIContainer.SetActive(false); 
         
         PlayVoice(introVoice, "Let's help Dasun build an electromagnet! Drag the correct core, wire, and power source to the blueprint.");
     }
 
+    // --- Called by ElectromagnetDragItem when a Correct Part is Placed ---
     public void OnCorrectPartPlaced(string itemType)
     {
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
@@ -96,12 +108,14 @@ public class ElectromagnetQuizManager : MonoBehaviour
             if (correctBatteryVoice != null) voiceLength = correctBatteryVoice.length;
         }
 
+        // When all 3 parts (Nail, Wire, Battery) are locked in, finish quiz
         if (partsConnected >= 3)
         {
             StartCoroutine(QuizCompleteSequence(voiceLength));
         }
     }
 
+    // --- Called by ElectromagnetDragItem when a Trick / Distractor Part is Dropped ---
     public void OnTrickPartUsed(string trickType)
     {
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
@@ -115,6 +129,7 @@ public class ElectromagnetQuizManager : MonoBehaviour
             PlayVoice(trickBulbVoice, "Oops! A bulb lights up, but it doesn't create a magnetic field!");
     }
 
+    // Displays subtitle and plays voiceover clip
     private void PlayVoice(AudioClip clip, string subtitle)
     {
         if (feedbackPanel != null) feedbackPanel.SetActive(true);
@@ -140,6 +155,7 @@ public class ElectromagnetQuizManager : MonoBehaviour
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
     }
 
+    // Plays congratulatory audio once blueprint is complete, then unlocks next button
     private IEnumerator QuizCompleteSequence(float explanationTime)
     {
         yield return new WaitForSeconds(explanationTime + 0.2f);
@@ -150,6 +166,7 @@ public class ElectromagnetQuizManager : MonoBehaviour
         if (nextButton != null) nextButton.SetActive(true);
     }
 
+    // --- Button Tap: Advances to Part 2 AR Testing Phase ---
     public void GoToFinalARPart()
     {
         if (currentQuizContainer != null) currentQuizContainer.SetActive(false);
@@ -157,7 +174,6 @@ public class ElectromagnetQuizManager : MonoBehaviour
         if (part1UIContainer != null) part1UIContainer.SetActive(false); 
         
         if (finalARContainer != null) finalARContainer.SetActive(true);
-        
         if (arManager != null) arManager.StartFinalARPhase();
     }
 }

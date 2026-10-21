@@ -2,9 +2,16 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 
+// =========================================================================================
+// SIMPLE MACHINES / FORCES: 2D MULTIPLE-CHOICE QUIZ (Ramp & Pulley)
+// =========================================================================================
+// Context: Assesses understanding of simple machines:
+// - Question 1 (Ramp): Explains that a gentler inclined plane (100cm) requires less pushing force than a steep ramp (150cm).
+// - Question 2 (Pulley): Explains that a pulley lets you pull downward to lift a crate upward, making heavy work easier.
+// When Question 2 is answered correctly, hides the old Push/Pull AR scene and activates the Pulley AR scene.
 public class Lesson2QuizManager : MonoBehaviour
 {
-    // --- THIS CREATES A DROPDOWN IN UNITY ---
+    // Dropdown to configure whether this script instance manages Question 1 or Question 2
     public enum Lesson2QuestionType 
     { 
         Question1_Ramp, 
@@ -14,23 +21,26 @@ public class Lesson2QuizManager : MonoBehaviour
     [Header("Select Which Question This Panel Is:")]
     public Lesson2QuestionType thisQuestionType;
 
+    // --- Quiz Panels & Flow ---
     [Header("Quiz Panels")]
     public GameObject currentQuizPanel; 
     public GameObject nextQuizPanel;    
 
-    // --- NEW: Containers to transition between AR scenes ---
+    // --- Scene Transition Containers ---
     [Header("End of Quiz Transition")]
-    [Tooltip("Drag the FIRST AR Scene (Push/Pull) here to hide it!")]
+    [Tooltip("Push/Pull AR scene container hidden when quiz completes")]
     public GameObject oldARSceneContainer;
 
-    [Tooltip("Drag your Lesson2_Pulley_AR_Scene container here!")]
+    [Tooltip("Pulley AR scene container activated when quiz completes")]
     public GameObject pulleyARSceneContainer;
 
+    // --- Feedback UI Elements ---
     [Header("Feedback UI Elements")]
     public GameObject feedbackPanel;
     public TextMeshProUGUI feedbackTextEN;
     public TextMeshProUGUI feedbackTextSN;
 
+    // --- Audio Settings & Clips ---
     [Header("Audio Settings")]
     public AudioSource audioPlayer;
     
@@ -44,18 +54,14 @@ public class Lesson2QuizManager : MonoBehaviour
     public AudioClip incorrectAudioEN;
     public AudioClip incorrectAudioSN;
 
-    // ==========================================
-    // ALL TEXT IS NOW SAFELY STORED IN THE CODE
-    // ==========================================
-
-    // --- QUESTION 1 (RAMP) TEXT ---
+    // --- Question 1 (Ramp) Explanatory Dialogue ---
     private string q1_correctEN = "Correct! A 100cm ramp is less steep. When the slope is lower, it takes less pushing force to move the crate up!";
     private string q1_correctSN = "ඉතා හොඳයි! තලයේ ආනත බව (steepness) අඩු වන විට යමක් ඉහළට තල්ලු කිරීම පහසු වේ.";
     
     private string q1_incorrectEN = "Not quite! A 150cm ramp is much steeper. Steeper slopes mean you have to use a lot more pushing force on the crate. Try the lower one!";
     private string q1_incorrectSN = "නැවත උත්සාහ කරන්න! 150cm යනු වැඩි ආනතියකි. ආනතිය වැඩි වන විට තල්ලු කිරීමට වැඩි බලයක් යෙදිය යුතුයි.";
 
-    // --- QUESTION 2 (PULLEY) TEXT ---
+    // --- Question 2 (Pulley) Explanatory Dialogue ---
     private string q2_correctEN = "Excellent! A pulley is a simple machine. It allows you to pull down to lift the crate up, making the heavy work much easier!";
     private string q2_correctSN = "ඉතා හොඳයි! කප්පියක් (Pulley) යනු බර එසවීම පහසු කරන සරල යන්ත්‍රයකි. කඹය පහළට ඇදීම මගින් පෙට්ටිය ඉහළට එසවිය හැකිය.";
     
@@ -64,7 +70,7 @@ public class Lesson2QuizManager : MonoBehaviour
 
     private Coroutine activeCoroutine;
 
-    // --- Automatically plays the moment the panel turns on! ---
+    // Plays the question audio as soon as this panel becomes active
     void OnEnable()
     {
         PlayQuestionVoiceover();
@@ -72,10 +78,10 @@ public class Lesson2QuizManager : MonoBehaviour
 
     void Start()
     {
-        // Ensure feedback panel is hidden when the quiz first appears
-        if(feedbackPanel != null) feedbackPanel.SetActive(false);
+        if (feedbackPanel != null) feedbackPanel.SetActive(false);
     }
 
+    // Plays question narration in user's selected language
     private void PlayQuestionVoiceover()
     {
         if (audioPlayer == null) return;
@@ -91,10 +97,10 @@ public class Lesson2QuizManager : MonoBehaviour
         }
     }
 
+    // --- Button Tap: Correct Answer ---
     public void OnCorrectAnswerClicked()
     {
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
-        // Check which question we are on, and send the correct text!
         if (thisQuestionType == Lesson2QuestionType.Question1_Ramp)
         {
             ShowFeedback(true, q1_correctEN, q1_correctSN, correctAudioEN, correctAudioSN);
@@ -105,10 +111,10 @@ public class Lesson2QuizManager : MonoBehaviour
         }
     }
 
+    // --- Button Tap: Incorrect Answer ---
     public void OnIncorrectAnswerClicked()
     {
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
-        // Check which question we are on, and send the incorrect text!
         if (thisQuestionType == Lesson2QuestionType.Question1_Ramp)
         {
             ShowFeedback(false, q1_incorrectEN, q1_incorrectSN, incorrectAudioEN, incorrectAudioSN);
@@ -119,10 +125,9 @@ public class Lesson2QuizManager : MonoBehaviour
         }
     }
 
-    // --- MAIN FEEDBACK LOGIC ---
+    // --- Displays Localized Feedback Strip & Starts Transition Timer ---
     private void ShowFeedback(bool isCorrect, string textEN, string textSN, AudioClip audioEN, AudioClip audioSN)
     {
-        // If they click a button while audio is already playing, stop the old timer
         if (activeCoroutine != null)
         {
             StopCoroutine(activeCoroutine);
@@ -131,7 +136,6 @@ public class Lesson2QuizManager : MonoBehaviour
         string currentLang = PlayerPrefs.GetString("Language", "English");
         bool isEnglish = (currentLang != "Sinhala");
 
-        // 1. Set the text dynamically
         if (isEnglish)
         {
             if (feedbackTextEN != null) 
@@ -151,9 +155,7 @@ public class Lesson2QuizManager : MonoBehaviour
             }
         }
 
-        // 2. Play the corresponding audio
         AudioClip clipToPlay = isEnglish ? audioEN : audioSN;
-
         if (audioPlayer != null && clipToPlay != null)
         {
             audioPlayer.Stop();
@@ -161,62 +163,46 @@ public class Lesson2QuizManager : MonoBehaviour
             audioPlayer.Play();
         }
 
-        // 3. Show the feedback strip on screen
         if (feedbackPanel != null) feedbackPanel.SetActive(true);
 
-        // 4. Start the automatic wait timer
         if (isCorrect)
-        {
             activeCoroutine = StartCoroutine(HandleCorrectAnswerSequence(clipToPlay));
-        }
         else
-        {
             activeCoroutine = StartCoroutine(HandleIncorrectAnswerSequence(clipToPlay));
-        }
     }
 
+    // Waits for feedback audio, then opens Question 2 or activates Pulley AR scene
     private IEnumerator HandleCorrectAnswerSequence(AudioClip playedClip)
     {
-        // Wait exactly the length of the voiceover + a half-second buffer
         float waitTime = playedClip != null ? playedClip.length + 0.5f : 3.0f;
         yield return new WaitForSeconds(waitTime);
 
-        // Hide the feedback panel
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
         
-        // --- UPDATED LOGIC: Transition to Next Quiz OR to AR Pulley Scene ---
         if (nextQuizPanel != null) 
         {
+            // Advance to Question 2
             nextQuizPanel.SetActive(true);
         }
         else 
         {
-            // If there is no next quiz panel, it means the quiz is over!
-            
-            // 1. Turn OFF the old Push/Pull models!
+            // Quiz complete: Switch from Push/Pull AR to Pulley AR
             if (oldARSceneContainer != null) 
-            {
                 oldARSceneContainer.SetActive(false);
-            }
 
-            // 2. Turn ON the new Pulley models!
             if (pulleyARSceneContainer != null) 
-            {
                 pulleyARSceneContainer.SetActive(true);
-            }
         }
 
-        // 3. TURN OFF CURRENT PANEL LAST (Fixes the Coroutine Bug)
         if (currentQuizPanel != null) currentQuizPanel.SetActive(false);
     }
 
+    // Waits for error audio, then hides feedback strip so student can retry
     private IEnumerator HandleIncorrectAnswerSequence(AudioClip playedClip)
     {
-        // Wait exactly the length of the voiceover
         float waitTime = playedClip != null ? playedClip.length + 0.5f : 3.0f;
         yield return new WaitForSeconds(waitTime);
 
-        // Just hide the feedback panel so the student can try clicking the correct button
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
     }
 }

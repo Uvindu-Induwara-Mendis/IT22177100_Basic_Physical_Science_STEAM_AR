@@ -1,24 +1,36 @@
 using System.Collections;
 using UnityEngine;
 using TMPro;
-using Vuforia; // NEW: Added Vuforia so we can flush its memory!
+using Vuforia;
 
+// =========================================================================================
+// SIMPLE MACHINES: PULLEY AR EXPERIMENT (Lifting Heavy Crates)
+// =========================================================================================
+// Context: Follows the 2D Ramp/Pulley Quiz. In this AR scene, character Dasun uses a pulley
+// mechanism to hoist a heavy wooden crate off the ground.
+// - Downward screen swipe (or tap) triggers Dasun's arm pulling animation and crank SFX.
+// - A 4-point LineRenderer dynamically draws the tensioned rope through the pulley wheel.
+// - The crate elevates step-by-step to maxHeight, reinforcing how pulleys redirect pulling force.
+// - Upon completion, reveals the storybook button to conclude the lesson.
 public class PulleyManager : MonoBehaviour
 {
-    // --- NEW: THE VUFORIA REFRESHER ---
+    // --- Vuforia AR Tracking Refresh ---
     [Header("Vuforia Settings")]
-    [Tooltip("Drag the Lesson 2 Image Target here so the script can force a rescan!")]
+    [Tooltip("Lesson 2 Image Target observer toggled to refresh camera tracking")]
     public ObserverBehaviour mainImageTarget;
 
+    // --- Main Scene & Model Containers ---
     [Header("Main Containers")]
     public GameObject pulleyUIContainer; 
     public GameObject modelsContainer;   
 
+    // --- UI Controls & Navigation ---
     [Header("UI Buttons")]
     public GameObject pullButton;        
     public GameObject storyRevealButton; 
-    public GameObject retryButton; // --- NEW: Toggle the retry button ---
+    public GameObject retryButton;       // Restarts the pulley lifting experiment
 
+    // --- Dialogue & Instruction Displays ---
     [Header("Instruction UI Elements")]
     public GameObject instructionPanel;  
     public TextMeshProUGUI instructionTextEN;
@@ -29,34 +41,38 @@ public class PulleyManager : MonoBehaviour
     public TextMeshProUGUI feedbackTextEN;
     public TextMeshProUGUI feedbackTextSN;
 
+    // --- Audio Player & Clips ---
     [Header("Audio Settings")]
     public AudioSource audioPlayer;
     public AudioClip instructionAudioEN;
     public AudioClip instructionAudioSN;
     public AudioClip feedbackAudioEN;
     public AudioClip feedbackAudioSN;
-    public AudioClip pulleyCrankSFX;
+    public AudioClip pulleyCrankSFX;     // Sound of rope squeak / wheel crank on pull
 
+    // --- Scene Transition Delay & Camera Prompts ---
     [Header("Transition Settings")]
     public float breathingRoomDelay = 1.5f; 
     public AudioClip scanPromptAudioEN; 
     public AudioClip scanPromptAudioSN;
 
+    // --- 3D Crate Model ---
     [Header("3D Models")]
     public Transform crateToLift;
     
+    // --- Dasun Character Arm Pull Animation ---
     [Header("Dasun Arm Animation")]
     public Transform leftShoulder;
     public Transform rightShoulder;
     
-    [Tooltip("Pose Dasun's arm at the bottom of the pull in the Scene, and copy the Rotation X, Y, Z here!")]
+    [Tooltip("Rotations for Dasun's arms at the bottom of the rope pull")]
     public Vector3 leftArmTargetRotation = new Vector3(30f, 31.2f, 12.8f); 
-    [Tooltip("Pose Dasun's arm at the bottom of the pull in the Scene, and copy the Rotation X, Y, Z here!")]
     public Vector3 rightArmTargetRotation = new Vector3(40f, -5.3f, 7.4f);
-    
     public float pullAnimDuration = 0.2f; 
     private bool isAnimatingArms = false;
 
+    // --- 4-Point Dynamic Pulley Rope ---
+    // Rope anchors: Crate -> Wheel Top Left -> Wheel Top Right -> Dasun's Hands
     [Header("Rope Settings (4 Points)")]
     public LineRenderer pulleyRope;
     public Transform crateTiePoint;       
@@ -64,14 +80,14 @@ public class PulleyManager : MonoBehaviour
     public Transform wheelTopRightPoint;  
     public Transform dasunHandPoint;      
 
+    // --- Lifting Physics Settings ---
     [Header("Lifting Mechanics")]
-    public float liftAmountPerTap = 0.2f; 
-    public float maxHeight = 1.5f;        
+    public float liftAmountPerTap = 0.2f; // Distance crate rises per pull
+    public float maxHeight = 1.5f;        // Target lift height to trigger success
     
     private Vector3 startingCratePos;
     private bool isCompleted = false;     
     
-    // --- CACHED INITIAL ROTATIONS ---
     private Quaternion initialLeftArmRot;
     private Quaternion initialRightArmRot;
     
@@ -80,10 +96,10 @@ public class PulleyManager : MonoBehaviour
     private bool isBreathingRoomOver = false;
     private bool hasPromptedToScan = false;
     
-    // --- ANIMATOR OVERRIDE FIX ---
     private Quaternion currentLeftArmAnimRot;
     private Quaternion currentRightArmAnimRot;
 
+    // --- Instruction & Feedback Strings ---
     private string instEN = "Swipe DOWN on your screen to help Dasun pull the heavy crate up!";
     private string instSN = "පෙට්ටිය ඉහළට එසවීමට තිරය මත පහළට අදින්න!";
     private string feedEN = "Great job! The pulley made lifting the heavy crate so much easier!";
@@ -91,6 +107,7 @@ public class PulleyManager : MonoBehaviour
     private string scanPromptEN = "Awesome! Now point your camera back at the book to continue!";
     private string scanPromptSN = "නියමයි! දැන් ඔබේ කැමරාව නැවතත් පොත වෙත යොමු කරන්න!";
 
+    // --- AR Marker Tracking Callbacks ---
     public void VuforiaTargetFound()
     {
         isMarkerTracked = true; 
@@ -120,9 +137,9 @@ public class PulleyManager : MonoBehaviour
         }
     }
 
+    // Toggles Vuforia target to refresh detection when this scene opens
     void OnEnable()
     {
-        // --- THE FIX: FORCE VUFORIA TO BLINK AND RESCAN ---
         if (mainImageTarget != null)
         {
             mainImageTarget.enabled = false;
@@ -150,28 +167,27 @@ public class PulleyManager : MonoBehaviour
         if (pulleyUIContainer != null) pulleyUIContainer.SetActive(false);
         if (retryButton != null) retryButton.SetActive(false);
 
-        if (modelsContainer != null) 
+        if (modelsContainer != null && modelsContainer != this.gameObject) 
         {
-            if (modelsContainer == this.gameObject)
-            {
-                Debug.LogWarning("Safety Lock: Models Container is pointing to the main script! Ignoring to save the script from dying.");
-            }
-            else
-            {
-                modelsContainer.SetActive(false); 
-            }
+            modelsContainer.SetActive(false); 
         }
 
         StartCoroutine(BreathingRoomRoutine());
     }
 
+    // Gives camera time to stabilize before prompting user to scan
     private IEnumerator BreathingRoomRoutine()
     {
         yield return new WaitForSeconds(breathingRoomDelay);
         isBreathingRoomOver = true;
 
-        if (isMarkerTracked) CheckAndStartScene();
-        else { hasPromptedToScan = true; PlayScanPromptAudio(); }
+        if (isMarkerTracked) 
+            CheckAndStartScene();
+        else 
+        { 
+            hasPromptedToScan = true; 
+            PlayScanPromptAudio(); 
+        }
     }
 
     private void PlayScanPromptAudio()
@@ -227,7 +243,7 @@ public class PulleyManager : MonoBehaviour
         DrawPulleyRope();
     }
     
-    // --- LATE UPDATE TO OVERRIDE THE ANIMATOR ---
+    // LateUpdate overrides Unity Animator rotations so procedural arm pull poses apply
     void LateUpdate()
     {
         if (isAnimatingArms)
@@ -237,6 +253,7 @@ public class PulleyManager : MonoBehaviour
         }
     }
 
+    // Connects 4 line segments between crate, top pulley wheel, and Dasun's hands
     private void DrawPulleyRope()
     {
         if (pulleyRope == null || crateTiePoint == null || wheelTopLeftPoint == null || wheelTopRightPoint == null || dasunHandPoint == null)
@@ -249,6 +266,8 @@ public class PulleyManager : MonoBehaviour
         pulleyRope.SetPosition(3, dasunHandPoint.position);     
     }
 
+    // --- Core Action: Lifts Crate Upward ---
+    // Triggered by downward screen swipe via PulleySwipeManager (or pull button tap)
     public void LiftCrate()
     {
         if (crateToLift == null || isCompleted) return;
@@ -267,8 +286,10 @@ public class PulleyManager : MonoBehaviour
                 StartCoroutine(AnimateDasunArms());
             }
 
+            // Raise crate
             crateToLift.localPosition += new Vector3(0, liftAmountPerTap, 0);
 
+            // Reached target elevation: complete activity
             if ((crateToLift.localPosition.y - startingCratePos.y) >= maxHeight)
             {
                 StartCoroutine(HandleCompletionSequence());
@@ -276,6 +297,7 @@ public class PulleyManager : MonoBehaviour
         }
     }
 
+    // Pulls Dasun's arms down and returns them up smoothly
     private IEnumerator AnimateDasunArms()
     {
         if (leftShoulder == null || rightShoulder == null) yield break;
@@ -288,7 +310,7 @@ public class PulleyManager : MonoBehaviour
         float elapsed = 0;
         float halfDuration = pullAnimDuration / 2f;
 
-        // Pull Down
+        // Arm motion Phase 1: Pull Down
         while (elapsed < halfDuration)
         {
             elapsed += Time.deltaTime;
@@ -296,11 +318,10 @@ public class PulleyManager : MonoBehaviour
             
             currentLeftArmAnimRot = Quaternion.Lerp(initialLeftArmRot, targetL, t);
             currentRightArmAnimRot = Quaternion.Lerp(initialRightArmRot, targetR, t);
-            
             yield return null;
         }
 
-        // Return Up
+        // Arm motion Phase 2: Return Up
         elapsed = 0;
         while (elapsed < halfDuration)
         {
@@ -309,27 +330,23 @@ public class PulleyManager : MonoBehaviour
             
             currentLeftArmAnimRot = Quaternion.Lerp(targetL, initialLeftArmRot, t);
             currentRightArmAnimRot = Quaternion.Lerp(targetR, initialRightArmRot, t);
-            
             yield return null;
         }
 
         currentLeftArmAnimRot = initialLeftArmRot;
         currentRightArmAnimRot = initialRightArmRot;
-        
         isAnimatingArms = false;
     }
 
+    // Displays initial prompt to swipe down and lift crate
     private void ShowInstructions()
     {
         string currentLang = PlayerPrefs.GetString("Language", "English");
         bool isEnglish = (currentLang != "Sinhala");
 
         if (pulleyUIContainer != null) pulleyUIContainer.SetActive(true);
-        
         if (modelsContainer != null && modelsContainer != this.gameObject) 
-        {
             modelsContainer.SetActive(true);
-        }
 
         if (instructionPanel != null) instructionPanel.SetActive(true);
         if (pullButton != null) pullButton.SetActive(true);
@@ -350,6 +367,7 @@ public class PulleyManager : MonoBehaviour
         }
     }
 
+    // Handles success voiceover and reveals the story conclusion button
     private IEnumerator HandleCompletionSequence()
     {
         isCompleted = true; 
@@ -397,37 +415,30 @@ public class PulleyManager : MonoBehaviour
         }
     }
 
-    // --- NEW: Contextual Retry Method for the AR Part ---
+    // --- Retry / Reset Pulley Experiment ---
+    // Resets crate position to ground, restores arm poses, and re-enables instructions
     public void ResetExperiment()
     {
-        // 1. Analytics: Record that the user retried this AR section
-        // (Assuming you want to track it across all AR managers eventually,
-        // but safe to check if CircuitAnalyticsManager exists)
         if (CircuitAnalyticsManager.Instance != null)
         {
             CircuitAnalyticsManager.Instance.RecordRetry();
         }
 
-        // 2. Stop any completion logic running
         StopAllCoroutines();
         isAnimatingArms = false;
         
-        // Fix Dasun's arms if they were in the middle of animation
         currentLeftArmAnimRot = initialLeftArmRot;
         currentRightArmAnimRot = initialRightArmRot;
         
-        // 3. Reset Crate position
         isCompleted = false;
         if (crateToLift != null && startingCratePos != Vector3.zero) 
         {
             crateToLift.localPosition = startingCratePos;
         }
 
-        // 4. Reset UI
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
         if (storyRevealButton != null) storyRevealButton.SetActive(false);
         
-        // 5. Show Instructions and Pull Button again
         ShowInstructions();
     }
 }

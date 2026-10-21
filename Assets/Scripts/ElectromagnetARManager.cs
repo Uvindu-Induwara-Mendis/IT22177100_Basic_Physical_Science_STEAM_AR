@@ -2,41 +2,51 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 
+// =========================================================================================
+// LESSON 2 (ELECTROMAGNETS): PART 2 - AR MARKER TRACKING & ELECTROMAGNET TESTING PHASE
+// =========================================================================================
+// Context: Follows the Lesson 2 2D Quiz. Prompts the student to aim their camera at the storybook
+// marker to inspect the 3D electromagnet. Students drag everyday objects (paperclip, eraser, key, etc.)
+// to the energized iron nail to see magnetic attraction vs non-magnetic materials in action.
 public class ElectromagnetARManager : MonoBehaviour
 {
+    // --- UI Dialogue Connections ---
     [Header("UI Connections")]
-    public GameObject feedbackPanel; 
+    public GameObject feedbackPanel;         // Subtitle & audio instruction banner
     public TextMeshProUGUI subtitleText;
 
+    // --- Audio Voiceovers ---
     [Header("Audio Sources")]
     public AudioSource voiceAudioSource;
 
     [Header("Voiceovers")]
-    public AudioClip mainIntroVoice; 
-    public AudioClip scanMarkerVoice; 
+    public AudioClip mainIntroVoice;         // Prompts user to drag household items to nail
+    public AudioClip scanMarkerVoice;        // Prompts user to aim camera back at storybook marker
+    public AudioClip finalCompletionVoice;   // Congratulates user upon finishing testing
 
+    // --- Navigation & Scene Containers ---
     public GameObject nextButton;
     public GameObject nextButtonContainer;
-    public GameObject storyRevealPanel;
-    public GameObject retryButton; // --- NEW: Toggle the retry button ---
+    public GameObject storyRevealPanel;      // Storybook narrative panel shown at end of lesson
+    public GameObject retryButton;           // Allows resetting items during Part 2 testing
     public GameObject finalARContainer;
     public GameObject part2UIContainer;
-    public AudioClip finalCompletionVoice;
 
     private Coroutine hideTextCoroutine;
     private bool hasPlayedIntro = false;
     
-    // Passively listens to the camera the entire game!
+    // AR tracking states (observed globally)
     [HideInInspector] public bool isTracking = false; 
     [HideInInspector] public bool isPart2Active = false;
 
-    // NEW: Called manually by the Quiz Manager when the 2D quiz finishes
+    // --- Starts Part 2 AR Testing Phase ---
+    // Invoked by ElectromagnetQuizManager when 2D quiz is completed
     public void StartFinalARPhase()
     {
         isPart2Active = true;
         if (retryButton != null) retryButton.SetActive(true);
         
-        // Instantly check the current camera state without waiting!
+        // If marker is already in view, play the drag prompt immediately
         if (isTracking)
         {
             PlayInstruction(mainIntroVoice, "Let's test our new electromagnet! Drag these everyday household items to the nail to find out which ones are magnetic.");
@@ -48,12 +58,12 @@ public class ElectromagnetARManager : MonoBehaviour
         }
     }
 
-    // AR EVENT: Hook this back up to your Image Target!
+    // --- AR Image Target Found Callback ---
+    // Attached to Vuforia / AR Foundation DefaultObserverEventHandler
     public void OnMarkerFound()
     {
         isTracking = true;
 
-        // Only play the voice if we are actually in Part 2!
         if (isPart2Active && !hasPlayedIntro)
         {
             PlayInstruction(mainIntroVoice, "Let's test our new electromagnet! Drag these everyday household items to the nail to find out which ones are magnetic.");
@@ -61,22 +71,19 @@ public class ElectromagnetARManager : MonoBehaviour
         }
     }
 
-    // AR EVENT: Hook this back up to your Image Target!
+    // --- AR Image Target Lost Callback ---
     public void OnMarkerLost()
     {
         isTracking = false;
 
-        // Only play the warning if we are actually in Part 2!
         if (isPart2Active)
         {
             PlayInstruction(scanMarkerVoice, "Point your phone back at the storybook marker to keep testing!");
         }
     }
 
-    // ──────────────────────────────────────────────
-    //  COMPLETION FLOW — runs on this persistent object
-    //  so Vuforia marker-loss can never kill the coroutine
-    // ──────────────────────────────────────────────
+    // --- Completion Flow Triggered from ElectromagnetTestManager ---
+    // Runs on this persistent GameObject so tracking loss doesn't cancel coroutines
     public void FinishLessonFromTestManager(float explanationTime)
     {
         StartCoroutine(FinishLessonSequence(explanationTime));
@@ -86,8 +93,7 @@ public class ElectromagnetARManager : MonoBehaviour
     {
         yield return new WaitForSeconds(explanationTime + 0.2f);
         
-        // Stop the test manager from hiding the shared feedback panel 
-        // since its HidePanelAfterTime coroutine might still be running!
+        // Silence any ongoing item feedback from the test manager
         ElectromagnetTestManager testManager = FindObjectOfType<ElectromagnetTestManager>();
         if (testManager != null) testManager.StopFeedbackPanelCoroutine();
 
@@ -96,25 +102,21 @@ public class ElectromagnetARManager : MonoBehaviour
         float finalWait = finalCompletionVoice != null ? finalCompletionVoice.length : 4.5f;
         yield return new WaitForSeconds(finalWait + 0.5f);
 
-        // Stop any lingering hide-panel coroutine
         if (hideTextCoroutine != null)
         {
             StopCoroutine(hideTextCoroutine);
             hideTextCoroutine = null;
         }
 
-        // Part 2 is done — stop reacting to marker events
         isPart2Active = false;
         if (retryButton != null) retryButton.SetActive(false);
-
-        // Clean up the feedback UI
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
 
-        // Go straight to the story reveal — no intermediate button needed!
+        // Transition directly to the storybook conclusion
         OpenStoryReveal();
     }
 
-    // Called by the next button to transition to the story panel
+    // --- Opens Story Reveal Panel ---
     public void OpenStoryReveal()
     {
         if (storyRevealPanel != null) storyRevealPanel.SetActive(true);
@@ -123,7 +125,7 @@ public class ElectromagnetARManager : MonoBehaviour
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
     }
 
-    // Public so the test manager can silence us before playing item feedback
+    // Stops current narration before playing specific item feedback
     public void StopCurrentInstruction()
     {
         if (voiceAudioSource != null && voiceAudioSource.isPlaying)
@@ -138,6 +140,7 @@ public class ElectromagnetARManager : MonoBehaviour
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
     }
 
+    // Plays instruction audio and displays matching subtitle banner
     private void PlayInstruction(AudioClip clip, string subtitle)
     {
         if (feedbackPanel != null) feedbackPanel.SetActive(true);

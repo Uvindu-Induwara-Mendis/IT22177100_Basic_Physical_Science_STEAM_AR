@@ -2,21 +2,29 @@ using UnityEngine;
 using TMPro;
 using System.Collections; 
 
+// =========================================================================================
+// LESSON: MAGNETISM - INTERACTIVE 3D BAR MAGNET TOUCH EXPERIMENT
+// =========================================================================================
+// Context: Screen-based interactive activity. Students drag two bar magnets toward each other,
+// test opposite poles (attract and snap together) vs like poles (repel with jitter), and tap
+// flip buttons to rotate poles. Once all combinations are tested, the Next button appears.
 public class MagnetTouchManager : MonoBehaviour
 {
+    // --- UI Controls & Navigation ---
     [Header("UI Controls")]
     public GameObject mainUICanvas; 
     public GameObject magnetUIContainer;
-    public GameObject flipLeftButton;
-    public GameObject flipRightButton;
-    public GameObject resetButton; 
-    public GameObject nextButton;
-    
-    public GameObject feedbackPanel; 
+    public GameObject flipLeftButton;       // Flips left magnet (North <-> South)
+    public GameObject flipRightButton;      // Flips right magnet (North <-> South)
+    public GameObject resetButton;          // Resets positions & poles to default
+    public GameObject nextButton;           // Revealed after all pole combinations tested
+    public GameObject feedbackPanel;        // Dialogue banner for feedback text
 
+    // --- Cleanup: Panels to hide when this scene opens ---
     [Header("UI Cleanup")]
     public GameObject[] elementsToHide;
 
+    // --- Localized Text & Dialogue ---
     [Header("Text UI")]
     public TextMeshProUGUI topTextEN;
     public TextMeshProUGUI topTextSN;
@@ -37,6 +45,7 @@ public class MagnetTouchManager : MonoBehaviour
     public string repelNNSuccessSN = "[FM NN Repel Success]";
     public string repelSSSuccessSN = "[FM SS Repel Success]";
 
+    // --- Audio Sources & Voiceovers ---
     [Header("Audio Sources")]
     public AudioSource voiceAudioSource;
     public AudioSource sfxAudioSource;   
@@ -48,28 +57,31 @@ public class MagnetTouchManager : MonoBehaviour
     public AudioClip repelSSVoiceEN; public AudioClip repelSSVoiceSN;
 
     [Header("Sound Effects")]
-    public AudioClip snapSFX;
-    public AudioClip magneticHumSFX;
+    public AudioClip snapSFX;               // Magnet snapping sound on attraction
+    public AudioClip magneticHumSFX;        // Magnetic resistance hum on repulsion
     public AudioClip uiClickSFX; 
 
+    // --- 3D Magnet Models & Movement Limits ---
     [Header("3D Magnets")]
     public Transform magnetLeft;  
     public Transform magnetRight; 
 
     [Header("Distance Settings")]
     public float dragSensitivity = 0.0005f; 
-    public float maxSwipeDistance = 0.06f; 
-    public float snapDistance = 0.08f; 
-    public float magneticPullZone = 0.09f; 
-    public float repulsionDistance = 0.085f; 
+    public float maxSwipeDistance = 0.06f;   // Maximum travel along X from start
+    public float snapDistance = 0.08f;       // Distance between magnets when snapped
+    public float magneticPullZone = 0.09f;   // Distance at which attraction pulls them together
+    public float repulsionDistance = 0.085f; // Minimum distance maintained when repelling
 
     [Header("Struggle Polish Settings")]
-    public float shakeSpeed = 50f;
-    public float shakeIntensity = 0.002f;
+    public float shakeSpeed = 50f;           // Speed of resistance jitter
+    public float shakeIntensity = 0.002f;    // Intensity of resistance jitter
 
+    // --- Internal State & Progress Tracking ---
     private Vector3 leftStartPos;
     private Vector3 rightStartPos;
 
+    // Pole tracking: true = North facing inward, false = South facing inward
     private bool leftInnerIsNorth = false; 
     private bool rightInnerIsNorth = true; 
 
@@ -81,11 +93,11 @@ public class MagnetTouchManager : MonoBehaviour
     private float repelVibrationTimer = 0f; 
     private bool isActivelyRepelling = false; 
 
+    // Progress flags to ensure student tests all combinations
     private bool tested_NS = false;
     private bool tested_SN = false;
     private bool tested_NN = false;
     private bool tested_SS = false;
-    
     private bool isQuizComplete = false; 
 
     void Start()
@@ -95,6 +107,8 @@ public class MagnetTouchManager : MonoBehaviour
         if (nextButton != null) nextButton.SetActive(false);
     }
 
+    // --- Initializes the Magnet Activity ---
+    // Activates the magnet canvas, sets up buttons, and plays the intro voiceover
     public void StartScene()
     {
         if (elementsToHide != null && elementsToHide.Length > 0)
@@ -114,6 +128,8 @@ public class MagnetTouchManager : MonoBehaviour
         PlayAudioAndText(introVoiceEN, introVoiceSN, introTopEN, introTopSN, introSubEN, introSubSN);
     }
 
+    // --- UI Button: Flip Left Magnet Pole ---
+    // Inverts pole orientation, rotates 3D model 180°, and resets positions
     public void OnFlipLeftButtonClicked()
     {
         leftInnerIsNorth = !leftInnerIsNorth;
@@ -122,6 +138,8 @@ public class MagnetTouchManager : MonoBehaviour
         if (sfxAudioSource != null && uiClickSFX != null) sfxAudioSource.PlayOneShot(uiClickSFX);
     }
 
+    // --- UI Button: Flip Right Magnet Pole ---
+    // Inverts pole orientation, rotates 3D model 180°, and resets positions
     public void OnFlipRightButtonClicked()
     {
         rightInnerIsNorth = !rightInnerIsNorth;
@@ -130,22 +148,21 @@ public class MagnetTouchManager : MonoBehaviour
         if (sfxAudioSource != null && uiClickSFX != null) sfxAudioSource.PlayOneShot(uiClickSFX);
     }
 
+    // --- UI Button: Reset Experiment ---
+    // Restores default poles (Left: South, Right: North) and initial rotations/positions
     public void OnResetButtonClicked()
     {
-        // 1. Reset the internal memory of the poles to default
         leftInnerIsNorth = false; 
         rightInnerIsNorth = true; 
 
-        // 2. Reset the visual 3D rotation back to the exact default you provided!
         if (magnetLeft != null) magnetLeft.localRotation = Quaternion.Euler(90f, 180f, 0f);
         if (magnetRight != null) magnetRight.localRotation = Quaternion.Euler(90f, 180f, 0f);
 
-        // 3. Reset the positions
         ResetPositions();
-        
         if (sfxAudioSource != null && uiClickSFX != null) sfxAudioSource.PlayOneShot(uiClickSFX); 
     }
 
+    // Restores magnets to start positions and clears interaction states
     private void ResetPositions()
     {
         isSnapped = false;
@@ -161,9 +178,9 @@ public class MagnetTouchManager : MonoBehaviour
         if (magnetLeft != null && !magnetLeft.gameObject.activeInHierarchy) return;
 
         isActivelyRepelling = false; 
-
         HandleTouchDrag();
 
+        // Pulsing haptic vibration when like poles actively push against each other
         if (isActivelyRepelling)
         {
             repelVibrationTimer -= Time.deltaTime;
@@ -179,12 +196,15 @@ public class MagnetTouchManager : MonoBehaviour
         }
     }
 
+    // --- Touch Dragging & Raycast Selection ---
+    // Detects finger touches, picks a magnet via raycast, and slides it along the X-axis
     private void HandleTouchDrag()
     {
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
 
+            // Phase 1: Tap down - raycast to select magnet
             if (touch.phase == TouchPhase.Began)
             {
                 Ray ray = Camera.main.ScreenPointToRay(touch.position);
@@ -202,6 +222,7 @@ public class MagnetTouchManager : MonoBehaviour
                     }
                 }
             }
+            // Phase 2: Dragging - update position along X within bounds
             else if ((touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary) && (isDraggingRight || isDraggingLeft))
             {
                 bool isMovingTowards = false;
@@ -228,6 +249,7 @@ public class MagnetTouchManager : MonoBehaviour
 
                 CalculateMagneticForces(isMovingTowards, isDraggingRight);
             }
+            // Phase 3: Touch released
             else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
             {
                 CalculateMagneticForces(false, isDraggingRight);
@@ -237,11 +259,15 @@ public class MagnetTouchManager : MonoBehaviour
         }
     }
 
+    // --- Magnetic Attraction & Repulsion Simulation ---
+    // If opposite poles: magnets snap together when close enough (attract).
+    // If like poles: opposite magnet is pushed away; shaking jitter applies at boundary (repel).
     private void CalculateMagneticForces(bool isMovingTowards, bool isRightActive)
     {
         bool isAttracting = (leftInnerIsNorth != rightInnerIsNorth);
         float distance = magnetRight.localPosition.x - magnetLeft.localPosition.x;
 
+        // --- OPPOSITE POLES: ATTRACTION ---
         if (isAttracting)
         {
             if (!isMovingTowards && distance > snapDistance + 0.002f) 
@@ -250,6 +276,7 @@ public class MagnetTouchManager : MonoBehaviour
             }
             else if (distance <= magneticPullZone) 
             {
+                // Magnet entered pull zone: snap together
                 if (!isSnapped)
                 {
                     isSnapped = true;
@@ -257,6 +284,7 @@ public class MagnetTouchManager : MonoBehaviour
 
                     if (sfxAudioSource != null && snapSFX != null) sfxAudioSource.PlayOneShot(snapSFX);
 
+                    // Track test combination (N-S or S-N) and explain attraction
                     if (leftInnerIsNorth) 
                     {
                         if (!tested_NS) { tested_NS = true; PlayAudioAndText(attractVoiceEN, attractVoiceSN, introTopEN, introTopSN, attractSuccessEN, attractSuccessSN); }
@@ -279,17 +307,20 @@ public class MagnetTouchManager : MonoBehaviour
                 isSnapped = false;
             }
         }
+        // --- LIKE POLES: REPULSION ---
         else 
         {
             if (distance <= repulsionDistance + 0.002f) 
             {
                 Vector3 targetPassivePos = Vector3.zero;
 
+                // Push passive magnet away
                 if (isRightActive)
                     targetPassivePos = new Vector3(magnetRight.localPosition.x - repulsionDistance, leftStartPos.y, leftStartPos.z);
                 else
                     targetPassivePos = new Vector3(magnetLeft.localPosition.x + repulsionDistance, rightStartPos.y, rightStartPos.z);
 
+                // Add struggle jitter if pushed to travel boundary
                 bool isAtBoundary = false;
                 if (isRightActive)
                     isAtBoundary = (magnetRight.localPosition.x <= rightStartPos.x - maxSwipeDistance + 0.005f);
@@ -315,6 +346,7 @@ public class MagnetTouchManager : MonoBehaviour
                 {
                     if (!isAtBoundary) isActivelyRepelling = true; 
 
+                    // Play repulsion voiceover & SFX
                     if (!isRepelSuccessTriggered)
                     {
                         isRepelSuccessTriggered = true;
@@ -322,6 +354,7 @@ public class MagnetTouchManager : MonoBehaviour
 
                         if (sfxAudioSource != null && magneticHumSFX != null) sfxAudioSource.PlayOneShot(magneticHumSFX);
 
+                        // Track test combination (N-N or S-S) and explain repulsion
                         if (leftInnerIsNorth) 
                         {
                             if (!tested_NN) { tested_NN = true; PlayAudioAndText(repelNNVoiceEN, repelNNVoiceSN, introTopEN, introTopSN, repelNNSuccessEN, repelNNSuccessSN); }
@@ -342,6 +375,8 @@ public class MagnetTouchManager : MonoBehaviour
         }
     }
 
+    // --- Progression Check ---
+    // If student has tested at least one attraction and both N-N and S-S repulsions, reveal Next button
     private void CheckCompletion()
     {
         if (!isQuizComplete && (tested_NS || tested_SN) && tested_NN && tested_SS)
@@ -351,6 +386,7 @@ public class MagnetTouchManager : MonoBehaviour
         }
     }
 
+    // Waits until voiceover ends before showing Next button to prevent audio cutoffs
     private IEnumerator WaitAndShowNextButton()
     {
         while (voiceAudioSource != null && voiceAudioSource.isPlaying)
@@ -361,6 +397,7 @@ public class MagnetTouchManager : MonoBehaviour
         if (nextButton != null) nextButton.SetActive(true);
     }
 
+    // Subtle 40ms pickup vibration on Android
     private void TriggerSubtleGrabHaptic()
     {
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -375,6 +412,8 @@ public class MagnetTouchManager : MonoBehaviour
 #endif
     }
 
+    // --- Audio & Subtitle Helper ---
+    // Displays localized dialogue and plays voiceover clip in English or Sinhala
     private void PlayAudioAndText(AudioClip clipEN, AudioClip clipSN, string topEN, string topSN, string subEN, string subSN)
     {
         bool isSinhala = PlayerPrefs.GetString("Language", "English") == "Sinhala";

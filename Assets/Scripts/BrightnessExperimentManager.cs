@@ -1,34 +1,45 @@
 using UnityEngine;
 using TMPro; 
 
+// =========================================================================================
+// LESSON 1 (ELECTRIC CIRCUITS): PHASE 2 - BATTERY SERIES & BULB BRIGHTNESS AR EXPERIMENT
+// =========================================================================================
+// Context: Follows the 2D Circuit Quiz. In this AR scene, the student taps 'Add Battery'
+// to stack dry cells in series. As more batteries are stacked, the 3D bulb's light intensity
+// and range visibly increase, teaching the concept of voltage/current in series circuits.
 public class BrightnessExperimentManager : MonoBehaviour
 {
+    // --- Scene & Quiz Manager References ---
     [Header("Managers")]
-    public StoryUIManager storyManager;
-    public CircuitCoreQuiz coreQuizScript;
+    public StoryUIManager storyManager;      // Storybook narrative & subtitle display
+    public CircuitCoreQuiz coreQuizScript;    // Quiz manager to notify when experiment is complete
 
+    // --- UI Controls & Text Prompts ---
     [Header("UI Connections")]
-    public GameObject addBatteryButton;
-    public GameObject retryButton; // --- NEW: Toggle the retry button ---
+    public GameObject addBatteryButton;       // Button to stack the next battery
+    public GameObject retryButton;            // Allows student to restart the battery stacking experiment
     public TextMeshProUGUI topInstructionText_EN; 
     public TextMeshProUGUI topInstructionText_SN; 
     
+    // --- Audio & Sound Effects ---
     [Header("Sound Effects")]
-    public AudioClip batteryStackSFX;
+    public AudioClip batteryStackSFX;         // Click/snap sound when a battery is added
 
+    // --- 3D Circuit Models & Light Component ---
     [Header("3D Models & Physics")]
-    public GameObject batteryPrefab; 
-    public Transform firstBatteryLocation; 
-    public Transform batteryPlusNode; 
-    public Light bulbLight; 
-    
-    public Transform bulbModel; 
+    public GameObject batteryPrefab;          // 3D model of the dry cell to spawn
+    public Transform firstBatteryLocation;    // Starting transform where base battery sits
+    public Transform batteryPlusNode;         // Positive terminal point (moves upward as batteries stack)
+    public Light bulbLight;                   // Unity Light component inside the bulb that brightens
+    public Transform bulbModel;               // Bulb 3D model transform (slides up to sit on top of stack)
 
+    // --- Stacking Offsets & Lighting Gains ---
     [Header("Stacking Settings")]
-    public float stackHeightOffset = 0.035f; 
-    public float lightIntensityIncrease = 5.0f; 
-    public float lightRangeIncrease = 1.0f;
+    public float stackHeightOffset = 0.035f;       // Distance offset along forward/up axis per battery
+    public float lightIntensityIncrease = 5.0f;    // Light intensity added per extra battery
+    public float lightRangeIncrease = 1.0f;        // Light reach/range added per extra battery
 
+    // --- Voiceover Dialogue & Subtitles ---
     [Header("Intro Audio & Text")]
     public AudioClip introVoice_EN;
     public AudioClip introVoice_SN;
@@ -41,7 +52,6 @@ public class BrightnessExperimentManager : MonoBehaviour
     public string successText_EN = "Great job! By connecting multiple dry cells the right way, we gave the bulb enough power to shine brightly!";
     public string successText_SN = "kshuhs mßm:hg ;j;a negß tl;= l<du f.dvla n,h ,efnkjd ta ksid n,aí tl ;j;a fyd|g t<sh fokjd";
 
-    // --- NEW: Moved Top Instructions here so you can use your FM Converter! ---
     [Header("Top Instructions")]
     public string topInstIntro_EN = "Tap the 'Add Battery' button to see what happens!";
     [Tooltip("Paste your FM-Abhaya converted text here!")]
@@ -51,17 +61,16 @@ public class BrightnessExperimentManager : MonoBehaviour
     [Tooltip("Paste your FM-Abhaya converted text here!")]
     public string topInstOutro_SN = "mÍlaIKh bjrhs"; 
 
-    private int currentBatteries = 1;
-    public int maxBatteries = 3;
-    
-    // --- NEW: Track spawned batteries for the Retry button ---
+    // --- Runtime Battery Tracking ---
+    private int currentBatteries = 1;         // Starts with 1 base battery
+    public int maxBatteries = 3;              // Target total: 3 batteries
     private System.Collections.Generic.List<GameObject> spawnedBatteries = new System.Collections.Generic.List<GameObject>();
-    
     private float initialScaleZ = 1f; 
-    private AudioSource localAudioSource; // NEW: Local audio source for when story manager is hidden
+    private AudioSource localAudioSource;
 
     private void Awake()
     {
+        // Add a local audio source in case StoryUIManager is temporarily inactive
         localAudioSource = gameObject.AddComponent<AudioSource>();
         localAudioSource.playOnAwake = false;
     }
@@ -74,20 +83,20 @@ public class BrightnessExperimentManager : MonoBehaviour
         }
     }
 
+    // --- Starts the Battery Stacking Phase ---
+    // Called when user transitions from Circuit Quiz to the Brightness Experiment in AR
     public void PlayIntroVoiceover()
     {
-        // ── Analytics: battery experiment (AR) begins, resume AR timer ──
+        // Resume analytics AR timer
         if (CircuitAnalyticsManager.Instance != null)
             CircuitAnalyticsManager.Instance.StartARTimer();
 
         PlayAudioAndText(introVoice_EN, introVoice_SN, introText_EN, introText_SN);
 
-        // Turn ON the retry button when the AR Part 2 starts!
         if (retryButton != null) retryButton.SetActive(true);
 
-        // --- NEW: Language Toggle Logic ---
+        // Set instruction text based on language preference
         string currentLang = PlayerPrefs.GetString("Language", "English");
-        
         if (currentLang == "Sinhala")
         {
             if (topInstructionText_EN != null) topInstructionText_EN.gameObject.SetActive(false);
@@ -108,39 +117,46 @@ public class BrightnessExperimentManager : MonoBehaviour
         }
     }
 
+    // --- On 'Add Battery' Button Tap ---
+    // Spawns another dry cell on top, shifts the bulb up, and boosts bulb light brightness
     public void OnAddBatteryClicked()
     {
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
         if (currentBatteries < maxBatteries)
         {
+            // Adjust offset dynamically if AR model was scaled by user pinch-zoom
             float currentScaleZ = firstBatteryLocation.lossyScale.z;
             float zoomRatio = (initialScaleZ > 0) ? (currentScaleZ / initialScaleZ) : 1f;
             float dynamicOffset = stackHeightOffset * zoomRatio;
 
+            // Compute position for new battery on top of stack
             Vector3 localUpwardOffset = firstBatteryLocation.forward * (dynamicOffset * currentBatteries);
             Vector3 newPosition = firstBatteryLocation.position + localUpwardOffset;
             
+            // Spawn battery and parent it to the AR target
             GameObject newBattery = Instantiate(batteryPrefab, newPosition, firstBatteryLocation.rotation, firstBatteryLocation.parent);
             newBattery.transform.localScale = firstBatteryLocation.localScale;
-            
-            // Track it so we can delete it on Retry
             spawnedBatteries.Add(newBattery);
 
+            // Play stacking sound effect
             if (batteryStackSFX != null && Camera.main != null)
             {
                 AudioSource.PlayClipAtPoint(batteryStackSFX, Camera.main.transform.position);
             }
 
+            // Move the positive terminal point upward
             if (batteryPlusNode != null)
             {
                 batteryPlusNode.position += (firstBatteryLocation.forward * dynamicOffset);
             }
 
+            // Move the 3D bulb model so it rests on top of the newest battery
             if (bulbModel != null)
             {
                 bulbModel.position += (firstBatteryLocation.forward * dynamicOffset);
             }
 
+            // Increase bulb illumination (demonstrates series voltage increase)
             if (bulbLight != null)
             {
                 bulbLight.intensity += lightIntensityIncrease;
@@ -149,21 +165,23 @@ public class BrightnessExperimentManager : MonoBehaviour
 
             currentBatteries++;
 
+            // If reached maximum batteries (3), complete the experiment
             if (currentBatteries >= maxBatteries) FinishExperiment();
         }
     }
 
+    // --- Completes Phase 2 Experiment ---
+    // Plays celebration voiceover, wraps up Lesson 1, and submits session analytics
     private void FinishExperiment()
     {
         Handheld.Vibrate();
 
         if (addBatteryButton != null) addBatteryButton.SetActive(false);
-        if (retryButton != null) retryButton.SetActive(false); // Hide the retry button when finished
+        if (retryButton != null) retryButton.SetActive(false);
         PlayAudioAndText(successVoice_EN, successVoice_SN, successText_EN, successText_SN);
 
-        // --- NEW: Language Toggle Logic for Outro ---
+        // Update top instructions to completion message
         string currentLang = PlayerPrefs.GetString("Language", "English");
-        
         if (currentLang == "Sinhala")
         {
             if (topInstructionText_EN != null) topInstructionText_EN.gameObject.SetActive(false);
@@ -185,33 +203,31 @@ public class BrightnessExperimentManager : MonoBehaviour
 
         if (coreQuizScript != null) coreQuizScript.OnExperimentComplete();
 
-        // ── Analytics: entire lesson complete, submit session data ──
+        // Submit final analytics session for Lesson 1
         if (CircuitAnalyticsManager.Instance != null)
             CircuitAnalyticsManager.Instance.SubmitSession();
     }
 
-    // --- NEW: Contextual Retry Method for the AR Part ---
+    // --- Retry / Reset Experiment ---
+    // Cleans up spawned batteries, resets bulb position/light back to 1 battery, and restarts prompt
     public void ResetExperiment()
     {
-        // 1. Analytics: Record that the user retried this AR section
         if (CircuitAnalyticsManager.Instance != null)
             CircuitAnalyticsManager.Instance.RecordRetry();
 
-        // 2. Destroy all spawned batteries
+        // Delete all extra batteries that were added
         foreach (GameObject bat in spawnedBatteries)
         {
             if (bat != null) Destroy(bat);
         }
         spawnedBatteries.Clear();
 
-        // 3. Reset positions and lights back to 1 battery worth
+        // Restore original positions of bulb model & light intensity
         if (currentBatteries > 1)
         {
             float currentScaleZ = firstBatteryLocation.lossyScale.z;
             float zoomRatio = (initialScaleZ > 0) ? (currentScaleZ / initialScaleZ) : 1f;
             float dynamicOffset = stackHeightOffset * zoomRatio;
-            
-            // Subtract the offset * (currentBatteries - 1)
             float totalOffsetToRemove = dynamicOffset * (currentBatteries - 1);
             
             if (batteryPlusNode != null)
@@ -227,34 +243,30 @@ public class BrightnessExperimentManager : MonoBehaviour
             }
         }
 
-        // 4. Reset state variables
         currentBatteries = 1;
 
-        // 5. Reset UI (turn the Add Battery button back on)
         if (addBatteryButton != null) addBatteryButton.SetActive(true);
 
-        // 6. Play the Intro voiceover again to prompt them
         PlayIntroVoiceover();
     }
 
+    // --- Audio & Subtitle Helper ---
+    // Plays narration via StoryUIManager (or fallback local AudioSource) in English or Sinhala
     private void PlayAudioAndText(AudioClip clipEN, AudioClip clipSN, string textEN, string textSN)
     {
         if (storyManager != null)
         {
-            storyManager.gameObject.SetActive(true); // RE-ENABLE THE SUBTITLE PANEL!
+            storyManager.gameObject.SetActive(true);
             storyManager.PlayVoiceover(clipEN, clipSN, textEN, textSN);
         }
-        else
+        else if (localAudioSource != null)
         {
-            if (localAudioSource != null)
+            string currentLang = PlayerPrefs.GetString("Language", "English");
+            AudioClip clipToPlay = (currentLang == "Sinhala") ? clipSN : clipEN;
+            if (clipToPlay != null)
             {
-                string currentLang = PlayerPrefs.GetString("Language", "English");
-                AudioClip clipToPlay = (currentLang == "Sinhala") ? clipSN : clipEN;
-                if (clipToPlay != null)
-                {
-                    localAudioSource.Stop();
-                    localAudioSource.PlayOneShot(clipToPlay);
-                }
+                localAudioSource.Stop();
+                localAudioSource.PlayOneShot(clipToPlay);
             }
         }
     }

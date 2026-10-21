@@ -1,17 +1,24 @@
 using UnityEngine;
 
+// =========================================================================================
+// ONBOARDING: AR SCANNING TUTORIAL SLIDESHOW
+// =========================================================================================
+// Context: Displays a multi-slide guide when the student chooses to view the tutorial from the Home menu.
+// Teaches the student how to point the camera at storybook markers, interact with 3D items,
+// and navigate lessons. Once the final slide is completed (or skipped), opens the AR Scanner.
 public class TutorialManager : MonoBehaviour
 {
+    // --- Connections & Slide References ---
     [Header("Connections")]
-    public UIManager uiManager; 
-    public GameObject tutorialPanel; // The main background panel
+    public UIManager uiManager;              // Used to launch the AR Scanner when tutorial ends
+    public GameObject tutorialPanel;         // Root UI panel for the tutorial overlay
 
     [Header("Tutorial Pages")]
-    public GameObject[] slides; // We will drop Slide 1, 2, and 3 in here!
+    public GameObject[] slides;              // Array of individual tutorial slide pages (Slide 1, 2, 3)
     
     private int currentSlide = 0;
 
-    // Call this when they click "Scan AR" on the Home Menu!
+    // --- Opens Tutorial from Home Menu ---
     public void OpenTutorial()
     {
         tutorialPanel.SetActive(true);
@@ -19,7 +26,8 @@ public class TutorialManager : MonoBehaviour
         UpdateSlides();
     }
 
-    // Call this when they click the "Next" button
+    // --- Next Button Tap ---
+    // Advances to next slide, or finishes tutorial if on last slide
     public void NextSlide()
     {
         if (currentSlide < slides.Length - 1)
@@ -29,38 +37,35 @@ public class TutorialManager : MonoBehaviour
         }
         else
         {
-            // If they are on the last slide, "Next" acts like a "Start" button!
             FinishTutorial(); 
         }
     }
 
-    // Call this if they click "Skip"
+    // --- Skip Button Tap ---
     public void SkipTutorial()
     {
         FinishTutorial();
     }
 
+    // Activates only the current slide index
     private void UpdateSlides()
     {
-        // 1. Turn ALL slides off first
         for (int i = 0; i < slides.Length; i++)
         {
             if (slides[i] != null) slides[i].SetActive(false);
         }
         
-        // 2. Turn only the current slide back on
         if (slides[currentSlide] != null) slides[currentSlide].SetActive(true);
     }
 
+    // Closes tutorial overlay and transitions to the AR camera scanner
     private void FinishTutorial()
     {
-        // Hide the tutorial
         tutorialPanel.SetActive(false);
         
-        // --- IMPORTANT: Tell your UIManager to open the camera now! ---
         if (uiManager != null)
         {
-            uiManager.OnScanImageClicked(); // <-- This perfectly matches your UIManager!
+            uiManager.OnScanImageClicked();
         }
     }
 }

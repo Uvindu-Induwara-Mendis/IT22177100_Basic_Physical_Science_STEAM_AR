@@ -1,22 +1,28 @@
 using UnityEngine;
 
+// =========================================================================================
+// LESSON 2 (ELECTROMAGNETS): 3D TESTABLE ITEM (AR SCENE)
+// =========================================================================================
+// Context: Attached to each 3D object in the Lesson 2 AR testing area (Paperclip, Safety Pin,
+// Eraser, Wooden Block, Copper Coin). Defines whether the material is magnetic or non-magnetic,
+// and applies an idle floating hover animation until grabbed by the student's finger.
 public class MagneticTestItem : MonoBehaviour
 {
+    // --- Material & Item Properties ---
     [Header("Item Properties")]
-    public string itemName; 
-    public bool isMagnetic; 
-    public string materialType; // e.g., "Plastic", "Wood", "Copper", "Steel"
+    public string itemName;                  // e.g., "Paperclip", "Safety Pin"
+    public bool isMagnetic;                  // True for iron/steel items that attract to electromagnet
+    public string materialType;              // "Plastic", "Wood", "Copper", "Steel"
 
+    // --- Idle Hover Animation ---
     [Header("Hover Settings")]
-    public bool enableHover = true;
+    public bool enableHover = true;          // Gentle vertical bobbing while on the desk
     public float hoverSpeed = 2f; 
     public float hoverHeight = 0.015f; 
 
     [HideInInspector] public Vector3 startingLocalPosition; 
-    [HideInInspector] public bool isLocked = false;
-    
-    // NEW: The safety switch to stop the Math vs. Finger fight!
-    [HideInInspector] public bool isBeingDragged = false; 
+    [HideInInspector] public bool isLocked = false;        // True once stuck to the electromagnet nail
+    [HideInInspector] public bool isBeingDragged = false;  // Disables hover math while finger is dragging
 
     void Start()
     {
@@ -25,12 +31,10 @@ public class MagneticTestItem : MonoBehaviour
 
     void Update()
     {
-        // Only hover if it's NOT locked to the magnet, and NOT being grabbed!
+        // Gently bob up and down on the desk while waiting to be picked up
         if (enableHover && !isLocked && !isBeingDragged)
         {
             float newY = startingLocalPosition.y + (Mathf.Sin(Time.time * hoverSpeed) * hoverHeight);
-            
-            // We use startingLocalPosition for X and Z so it doesn't drift away!
             transform.localPosition = new Vector3(startingLocalPosition.x, newY, startingLocalPosition.z);
         }
     }

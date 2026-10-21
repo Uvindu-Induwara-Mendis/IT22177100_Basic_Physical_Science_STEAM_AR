@@ -1,18 +1,25 @@
 using UnityEngine;
 
+// =========================================================================================
+// UTILITY: 2-FINGER TOUCH PINCH-TO-SCALE FOR AR 3D MODELS
+// =========================================================================================
+// Context: Attached to AR model root wrappers across lessons (e.g. circuits, electromagnet, pulley).
+// Measures delta distance between two fingers on touchscreen to smoothly zoom/scale 3D models.
+// Clamps scale within minScale and maxScale so the model remains at a comfortable viewing size.
 public class ARPinchToScale : MonoBehaviour
 {
+    // --- Scale Settings & Clamping ---
     [Header("Scaling Settings")]
-    [Tooltip("Drag your AR_Content_Wrapper here!")]
+    [Tooltip("Transform of the AR model wrapper to scale")]
     public Transform objectToScale; 
     
-    [Tooltip("How fast it zooms in and out")]
+    [Tooltip("Zoom speed multiplier per touch delta")]
     public float scaleSpeed = 0.005f; 
     
-    [Tooltip("The smallest it can get (e.g., 0.8 = 80% of original)")]
+    [Tooltip("Minimum scale limit (0.8 = 80% of original)")]
     public float minScale = 0.8f; 
     
-    [Tooltip("The largest it can get (e.g., 1.4 = 140% of original)")]
+    [Tooltip("Maximum scale limit (1.4 = 140% of original)")]
     public float maxScale = 1.4f;
 
     private Vector3 initialScale;
@@ -21,42 +28,37 @@ public class ARPinchToScale : MonoBehaviour
     {
         if (objectToScale != null)
         {
-            // Remember the starting size so we can clamp it safely
             initialScale = objectToScale.localScale;
         }
     }
 
     void Update()
     {
-        // Check if there are exactly 2 fingers on the screen
+        // Detect 2-finger pinch gesture
         if (Input.touchCount == 2)
         {
             Touch touchZero = Input.GetTouch(0);
             Touch touchOne = Input.GetTouch(1);
 
-            // Find the position of those fingers in the previous frame
+            // Previous frame positions
             Vector2 touchZeroPrevPos = touchZero.position - touchZero.deltaPosition;
             Vector2 touchOnePrevPos = touchOne.position - touchOne.deltaPosition;
 
-            // Find the distance between the fingers in the previous frame and current frame
+            // Compute distance delta between fingers
             float prevTouchDeltaMag = (touchZeroPrevPos - touchOnePrevPos).magnitude;
             float touchDeltaMag = (touchZero.position - touchOne.position).magnitude;
-
-            // Find the difference (did they pinch in or pull out?)
             float deltaMagnitudeDiff = prevTouchDeltaMag - touchDeltaMag;
 
-            // Apply the scale
             if (objectToScale != null)
             {
-                // Calculate the new scale based on finger movement
+                // Compute new scale
                 Vector3 newScale = objectToScale.localScale - (Vector3.one * deltaMagnitudeDiff * scaleSpeed);
 
-                // Clamp it so kids can't make the battery the size of a skyscraper or infinitely small
+                // Clamp within safe limits
                 newScale.x = Mathf.Clamp(newScale.x, initialScale.x * minScale, initialScale.x * maxScale);
                 newScale.y = Mathf.Clamp(newScale.y, initialScale.y * minScale, initialScale.y * maxScale);
                 newScale.z = Mathf.Clamp(newScale.z, initialScale.z * minScale, initialScale.z * maxScale);
 
-                // Apply it to the wrapper!
                 objectToScale.localScale = newScale;
             }
         }

@@ -1,24 +1,28 @@
 using UnityEngine;
-using Vuforia; // We need this to talk to the AR Camera
+using Vuforia;
 
+// =========================================================================================
+// UTILITY: 2D PANEL AR CAMERA & TRACKING PAUSE CONTROLLER
+// =========================================================================================
+// Context: Attached to 2D UI overlay panels (e.g. Quizzes, Story Dialogue, Options).
+// Disables Vuforia camera tracking while the 2D panel is open to save battery and prevent
+// accidental background AR marker detection. Re-enables Vuforia tracking when panel closes.
 public class CameraPauseManager : MonoBehaviour
 {
-    // This runs the exact millisecond this 2D Panel turns ON
+    // Pauses Vuforia camera and tracking when 2D panel opens
     void OnEnable()
     {
         if (VuforiaBehaviour.Instance != null)
         {
-            // Close Vuforia's eyes (Pauses the camera and tracking)
             VuforiaBehaviour.Instance.enabled = false;
         }
     }
 
-    // This runs the exact millisecond this 2D Panel turns OFF
+    // Resumes Vuforia camera and tracking when 2D panel closes
     void OnDisable()
     {
         if (VuforiaBehaviour.Instance != null)
         {
-            // Open Vuforia's eyes (Resumes the camera and tracking)
             VuforiaBehaviour.Instance.enabled = true;
         }
     }

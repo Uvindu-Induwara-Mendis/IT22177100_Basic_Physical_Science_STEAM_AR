@@ -3,52 +3,50 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 
-/// <summary>
-/// Singleton analytics manager for the Circuit Lesson (Lesson 1).
-/// This is a direct port of the working AnalyticsManager — only the class name,
-/// Firebase node (/circuit_sessions), CSV filename, and offline cache key differ.
-/// </summary>
+// =========================================================================================
+// LESSON 1 (ELECTRIC CIRCUITS): RESEARCH ANALYTICS MANAGER (Singleton)
+// =========================================================================================
+// Context: Collects research evaluation metrics during the student's Lesson 1 session:
+// - AR interaction time (time spent pointing camera & wiring / stacking batteries)
+// - 2D Quiz interaction time & error counts
+// - Total session duration and retry attempts
+// Data is uploaded to Firebase Realtime Database (/sessions) with an offline PlayerPrefs cache
+// and locally backed up to a CSV file in Application.persistentDataPath.
 public class CircuitAnalyticsManager : MonoBehaviour
 {
-    // Singleton
+    // Global singleton instance accessible by all Lesson 1 scripts
     public static CircuitAnalyticsManager Instance { get; private set; }
 
     [Header("Firebase Settings")]
-    [Tooltip("Your Firebase Realtime Database URL (e.g. https://xxx-default-rtdb.asia-southeast1.firebasedatabase.app/)")]
+    [Tooltip("Firebase Realtime Database REST endpoint")]
     public string firebaseDatabaseURL = "PASTE_YOUR_FIREBASE_URL_HERE";
 
-    // Session Data
+    // --- Session Metrics ---
     private string sessionLanguage = "English";
 
-    // 1. AR Interaction Time
+    // 1. AR Interaction Timers
     private float arTimerStart = 0f;
     private float arTotalTime = 0f;
     private bool arTimerRunning = false;
 
-    // 1b. Quiz Interaction Time
+    // 2. 2D Quiz Timers & Errors
     private float quizTimerStart = 0f;
     private float quizTotalTime = 0f;
     private bool quizTimerRunning = false;
-
-    // 2. Quiz Error Rate
     private int totalQuizErrors = 0;
     private int totalQuizQuestions = 0;
 
-    // 3. Session Duration
+    // 3. Overall Session Duration & Retry Count
     private float sessionStartTime = 0f;
-
-    // 4. Retry Count
     private int totalRetries = 0;
 
-    // Guards
     private bool sessionSubmitted = false;
     private string csvFilePath;
-
-    // Device identity
     private string deviceId;
 
     private void Awake()
     {
+        // Enforce persistent singleton
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -60,6 +58,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
 
         deviceId = SystemInfo.deviceUniqueIdentifier;
 
+        // Initialize local CSV file header if not already created
         csvFilePath = Path.Combine(Application.persistentDataPath, "AR_CircuitLesson_analytics.csv");
         if (!File.Exists(csvFilePath))
         {
@@ -72,7 +71,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
 
     private void Start()
     {
-        // On startup, flush any Firebase data saved offline (e.g. app closed unexpectedly)
+        // Flush any offline cached payloads that couldn't be sent during previous sessions
         string cached = PlayerPrefs.GetString("CircuitFirebaseOfflineCache", "");
         if (!string.IsNullOrEmpty(cached))
         {
@@ -89,8 +88,9 @@ public class CircuitAnalyticsManager : MonoBehaviour
         }
     }
 
-    // Public API
+    // --- Public Analytics API ---
 
+    // Called when user selects their language (English / Sinhala) at start of lesson
     public void SetLanguage(string language)
     {
         if (sessionSubmitted) ResetSession();
@@ -100,6 +100,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         Debug.Log($"[CircuitAnalytics] Language: {sessionLanguage} | Session started.");
     }
 
+    // AR phase timers (invoked during wiring and battery stacking)
     public void StartARTimer()
     {
         if (arTimerRunning) return;
@@ -115,6 +116,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         arTimerRunning = false;
     }
 
+    // 2D Quiz phase timers
     public void StartQuizTimer()
     {
         if (quizTimerRunning) return;
@@ -130,6 +132,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         quizTimerRunning = false;
     }
 
+    // Called whenever the student picks an incorrect answer
     public void RecordQuizError()
     {
         totalQuizErrors++;
@@ -140,11 +143,14 @@ public class CircuitAnalyticsManager : MonoBehaviour
         totalQuizQuestions += count;
     }
 
+    // Called whenever student taps 'Retry' in AR wiring or battery stacking
     public void RecordRetry()
     {
         totalRetries++;
     }
 
+    // --- Submits Completed Session ---
+    // Finalizes timers, writes to local CSV, and posts JSON to Firebase
     public void SubmitSession(System.Action onComplete = null)
     {
         if (sessionSubmitted)
@@ -164,6 +170,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         Debug.Log("[CircuitAnalytics] Session submitted. Locked until next lesson start.");
     }
 
+    // Clears metrics for a fresh lesson attempt
     public void ResetSession()
     {
         sessionLanguage = "English";
@@ -180,8 +187,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         sessionSubmitted = false;
     }
 
-    // Firebase POST
-
+    // --- JSON Serialization for Firebase ---
     private string BuildJSON()
     {
         float sessionDuration = Time.realtimeSinceStartup - sessionStartTime;
@@ -207,6 +213,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
             + "}";
     }
 
+    // --- Firebase Web Request ---
     private IEnumerator PostToFirebase(string json, System.Action onComplete = null)
     {
         Debug.Log($"[CircuitAnalytics] Sending to Firebase:\n{json}");
@@ -219,8 +226,6 @@ public class CircuitAnalyticsManager : MonoBehaviour
             yield break;
         }
 
-        // POST to /sessions.json — bypassing rules issues.
-        // The data includes "lesson_name":"Circuit Lesson" to tell it apart.
         string url     = firebaseDatabaseURL.TrimEnd('/') + "/sessions.json";
         byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(json);
 
@@ -247,6 +252,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         onComplete?.Invoke();
     }
 
+    // Caches data in PlayerPrefs if offline / network error
     private void SaveFirebaseOffline(string json)
     {
         string existing = PlayerPrefs.GetString("CircuitFirebaseOfflineCache", "");
@@ -257,8 +263,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         Debug.Log("[CircuitAnalytics] Firebase payload saved offline.");
     }
 
-    // Local CSV Backup
-
+    // Appends metrics to local CSV file
     private void SaveToCSV()
     {
         float sessionDuration = Time.realtimeSinceStartup - sessionStartTime;
@@ -274,6 +279,7 @@ public class CircuitAnalyticsManager : MonoBehaviour
         catch (System.Exception ex) { Debug.LogError($"[CircuitAnalytics] CSV error: {ex.Message}"); }
     }
 
+    // Save session automatically if app is closed or minimized
     private void OnApplicationQuit()
     {
         if (!sessionSubmitted)
@@ -284,7 +290,6 @@ public class CircuitAnalyticsManager : MonoBehaviour
             SaveToCSV();
             string json = BuildJSON();
             SaveFirebaseOffline(json);
-            Debug.Log("[CircuitAnalytics] App Quit! Session saved offline for next launch.");
         }
     }
 
@@ -298,7 +303,6 @@ public class CircuitAnalyticsManager : MonoBehaviour
             SaveToCSV();
             string json = BuildJSON();
             SaveFirebaseOffline(json);
-            Debug.Log("[CircuitAnalytics] App Paused! Session saved offline for next launch.");
         }
     }
 }

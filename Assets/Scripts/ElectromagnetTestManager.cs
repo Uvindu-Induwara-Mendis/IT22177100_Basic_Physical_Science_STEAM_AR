@@ -2,34 +2,47 @@ using UnityEngine;
 using TMPro;
 using System.Collections;
 
+// =========================================================================================
+// LESSON 2 (ELECTROMAGNETS): PART 2 - 3D AR ITEM TESTING INTERACTION
+// =========================================================================================
+// Context: Operates in the Lesson 2 AR scene once the electromagnet is active.
+// Students test various 3D everyday items by dragging them toward the iron nail tip:
+// - Magnetic items (Paperclip, Safety Pin): snap to the nail with magnetic pull sound and explanation.
+// - Non-magnetic items (Plastic, Wood, Copper): bounce back to original position with rejection sound.
+// Once both magnetic items are stuck to the nail, completes the lesson via ElectromagnetARManager.
 public class ElectromagnetTestManager : MonoBehaviour
 {
+    // --- Managers & UI Dialogues ---
     [Header("AR Manager Reference")]
-    public ElectromagnetARManager arManager;
+    public ElectromagnetARManager arManager;  // Coordinates marker tracking & completion flow
 
     [Header("UI Connections")]
-    public GameObject feedbackPanel; 
+    public GameObject feedbackPanel;          // Displays feedback subtitles
     public TextMeshProUGUI subtitleText;
 
+    // --- 3D Snap Anchors on the Iron Nail ---
     [Header("Game Objects")]
-    public Transform[] snapTargets; 
-    public float snapDistance = 0.15f; 
+    public Transform[] snapTargets;           // Target positions on nail tip where items stick
+    public float snapDistance = 0.15f;        // Proximity threshold required to trigger snap
 
+    // --- Audio Sources & SFX ---
     [Header("Audio Sources")]
     public AudioSource voiceAudioSource;
     public AudioSource sfxAudioSource;
 
     [Header("Sound Effects")]
-    public AudioClip snapSFX;
-    public AudioClip rejectBoopSFX;
+    public AudioClip snapSFX;                 // Snap sound when magnetic item attracts to nail
+    public AudioClip rejectBoopSFX;           // Error boop when non-magnetic item is released
 
+    // --- Explanatory Voiceovers ---
     [Header("Voiceovers")]
-    public AudioClip successPaperclipVoice;
-    public AudioClip successSafetyPinVoice;
-    public AudioClip rejectPlasticVoice;
-    public AudioClip rejectWoodVoice;
-    public AudioClip rejectCopperVoice;
+    public AudioClip successPaperclipVoice;   // Explains iron in paperclip
+    public AudioClip successSafetyPinVoice;   // Explains iron in safety pin
+    public AudioClip rejectPlasticVoice;      // Explains plastic is non-magnetic
+    public AudioClip rejectWoodVoice;         // Explains wood is non-magnetic
+    public AudioClip rejectCopperVoice;       // Explains copper is a non-magnetic metal
 
+    // --- Runtime Touch Dragging State ---
     private MagneticTestItem draggedItem;
     private float zDistance;
     private Vector3 dragOffset;
@@ -41,12 +54,15 @@ public class ElectromagnetTestManager : MonoBehaviour
         HandleTouchDrag();
     }
 
+    // --- Touch Dragging 3D Items in AR ---
+    // Raycasts from screen touch to pick up a MagneticTestItem, maintains depth, and follows finger
     private void HandleTouchDrag()
     {
         if (Input.touchCount > 0)
         {
             Touch touch = Input.GetTouch(0);
 
+            // Phase 1: Tap down - pick up item if not already locked to nail
             if (touch.phase == TouchPhase.Began)
             {
                 Ray ray = Camera.main.ScreenPointToRay(touch.position);
@@ -65,11 +81,13 @@ public class ElectromagnetTestManager : MonoBehaviour
                     }
                 }
             }
+            // Phase 2: Dragging item across AR screen space
             else if (touch.phase == TouchPhase.Moved && draggedItem != null)
             {
                 Vector3 screenPos = new Vector3(touch.position.x, touch.position.y, zDistance);
                 draggedItem.transform.position = Camera.main.ScreenToWorldPoint(screenPos) + dragOffset;
             }
+            // Phase 3: Released item - test if close to electromagnet nail
             else if ((touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) && draggedItem != null)
             {
                 draggedItem.isBeingDragged = false;
@@ -79,8 +97,10 @@ public class ElectromagnetTestManager : MonoBehaviour
         }
     }
 
+    // --- Evaluates Item Release Near Electromagnet ---
     private void CheckDropZone()
     {
+        // Check proximity to any of the nail snap targets
         bool isCloseEnough = false;
         foreach (Transform target in snapTargets)
         {
@@ -93,6 +113,7 @@ public class ElectromagnetTestManager : MonoBehaviour
 
         if (isCloseEnough)
         {
+            // CASE A: Magnetic Item (Attracted to nail)
             if (draggedItem.isMagnetic)
             {
                 if (correctlySnappedItems < snapTargets.Length)
@@ -121,6 +142,7 @@ public class ElectromagnetTestManager : MonoBehaviour
                 correctlySnappedItems++;
                 CheckForCompletion(voiceLength);
             }
+            // CASE B: Non-Magnetic Item (Rejected, returns to desk)
             else
             {
                 draggedItem.transform.localPosition = draggedItem.startingLocalPosition;
@@ -138,13 +160,14 @@ public class ElectromagnetTestManager : MonoBehaviour
         }
         else
         {
+            // Released away from nail: return to starting desk position
             draggedItem.transform.localPosition = draggedItem.startingLocalPosition;
         }
     }
 
+    // Plays educational voiceover and displays subtitle
     private void PlayVoice(AudioClip clip, string subtitle)
     {
-        // Stop any instruction voice from the AR Manager so they don't overlap
         if (arManager != null) arManager.StopCurrentInstruction();
 
         if (feedbackPanel != null) feedbackPanel.SetActive(true);
@@ -179,12 +202,11 @@ public class ElectromagnetTestManager : MonoBehaviour
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
     }
 
+    // When 2 magnetic items (paperclip & safety pin) are stuck to the nail, trigger completion
     private void CheckForCompletion(float explanationTime)
     {
         if (correctlySnappedItems >= 2)
         {
-            // Delegate to the persistent AR Manager so the coroutine
-            // survives even if Vuforia disables this AR content
             if (arManager != null)
             {
                 arManager.FinishLessonFromTestManager(explanationTime);
@@ -206,29 +228,26 @@ public class ElectromagnetTestManager : MonoBehaviour
 #endif
     }
 
-    // --- NEW: Contextual Retry Method for the AR Part ---
+    // --- Retry / Reset AR Testing ---
+    // Resets snapped item count, restores all test items to initial desk positions
     public void ResetExperiment()
     {
-        // 1. Analytics
         if (CircuitAnalyticsManager.Instance != null)
         {
             CircuitAnalyticsManager.Instance.RecordRetry();
         }
 
-        // 2. Reset internal state
         correctlySnappedItems = 0;
         draggedItem = null;
 
-        // 3. Stop audio/coroutines
         StopFeedbackPanelCoroutine();
         if (voiceAudioSource != null && voiceAudioSource.isPlaying)
         {
             voiceAudioSource.Stop();
         }
         if (feedbackPanel != null) feedbackPanel.SetActive(false);
-        if (arManager != null) arManager.StopCurrentInstruction(); // stops AR manager's voice if any
+        if (arManager != null) arManager.StopCurrentInstruction();
 
-        // 4. Find all test items and reset them
         MagneticTestItem[] allItems = FindObjectsOfType<MagneticTestItem>();
         foreach (MagneticTestItem item in allItems)
         {

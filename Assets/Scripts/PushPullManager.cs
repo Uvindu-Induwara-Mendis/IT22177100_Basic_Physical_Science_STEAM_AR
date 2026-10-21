@@ -2,34 +2,46 @@ using System.Collections;
 using UnityEngine;
 using TMPro;
 
+// =========================================================================================
+// SIMPLE MACHINES / FORCES: PUSH & PULL AR INTERACTION
+// =========================================================================================
+// Context: First AR activity in the Forces & Simple Machines lesson. Demonstrates fundamental forces:
+// - Tap 'Push': slides the wooden crate away from character Dasun, explaining that push moves objects away.
+// - Tap 'Pull': pulls the crate back toward Dasun using a sagging rope (LineRenderer catenary curve).
+// Once both push and pull forces have been tested, reveals the Next button to begin the 2D Ramp/Pulley Quiz.
 public class PushPullManager : MonoBehaviour
 {
+    // --- 3D Crate Model & Force Direction Arrows ---
     [Header("3D Models")]
     public Transform theCrate;
-    public GameObject pushArrow; 
-    public GameObject pullArrow; 
+    public GameObject pushArrow;             // Green arrow indicating push direction (away from Dasun)
+    public GameObject pullArrow;             // Blue arrow indicating pull direction (toward Dasun)
 
+    // --- Pull Rope Simulation ---
     [Header("Rope Physics")]
     public LineRenderer pullRope; 
-    public Transform ropeAnchor; 
-    public Transform crateTiePoint;    
-    public int ropeSegments = 20;      
-    public float maxRopeSag = 0.5f;    
+    public Transform ropeAnchor;             // Anchor point near Dasun
+    public Transform crateTiePoint;          // Anchor point on the crate
+    public int ropeSegments = 20;            // Number of points along the sag curve
+    public float maxRopeSag = 0.5f;          // Sag depth when rope is slack
 
+    // --- UI Panels & Buttons ---
     [Header("UI Elements")]
     public GameObject mainUIPanel;       
     public GameObject lesson2UIContainer; 
     public GameObject pushButton;  
     public GameObject pullButton;  
-    public GameObject nextButton; 
-    public GameObject retryButton; // --- NEW: Toggle the retry button ---
+    public GameObject nextButton;            // Unlocked after testing both push and pull
+    public GameObject retryButton; 
     
-    [Tooltip("Drag any Lesson 1 UI elements here that need to be hidden")]
+    [Tooltip("Lesson 1 UI elements to hide when this lesson opens")]
     public GameObject[] lesson1ElementsToHide; 
 
+    // --- Transition to Quiz ---
     [Header("Quiz Transition")]
-    public GameObject lesson2QuizPanel_Q1; 
+    public GameObject lesson2QuizPanel_Q1;   // The 2D Ramp/Pulley quiz panel
 
+    // --- Top Task Instructions ---
     [Header("Top Instructions (Simple Guide)")]
     public TextMeshProUGUI topInstruction_EN; 
     public TextMeshProUGUI topInstruction_SN; 
@@ -41,6 +53,7 @@ public class PushPullManager : MonoBehaviour
     public string topTextPullEN = "Great job! Tap 'Next' to continue!";
     public string topTextPullSI = "[Enter Sinhala Here]";
 
+    // --- Subtitles & Explanatory Dialogue ---
     [Header("Subtitles & Text (Dasun's Voice)")]
     public TextMeshProUGUI subtitleText_EN; 
     public TextMeshProUGUI subtitleText_SN; 
@@ -52,12 +65,14 @@ public class PushPullManager : MonoBehaviour
     public string pullTextEN = "Awesome! Pulling is a force that brings an object closer to you. By pulling the rope, you brought the crate closer to Dasun!";
     public string pullTextSI = "[Enter Sinhala Pull Here]";
 
+    // --- Sliding & Animation Settings ---
     [Header("Movement Settings")]
     public float slideDistance = 0.5f; 
     public float slideSpeed = 3.0f; 
-    public float tiltAngle = 15f; 
+    public float tiltAngle = 15f;            // Dynamic tilting while sliding across floor
     public float arrowLingerTime = 0.6f; 
 
+    // --- Audio Settings ---
     [Header("Audio Settings")]
     public AudioSource audioPlayer;
     public AudioClip introInstructionEN;
@@ -66,9 +81,7 @@ public class PushPullManager : MonoBehaviour
     public AudioClip pushInstructionSI;
     public AudioClip pullInstructionEN;
     public AudioClip pullInstructionSI;
-    
-    [Tooltip("Drag your wooden scrape/slide sound effect here!")]
-    public AudioClip crateSlideSFX;
+    public AudioClip crateSlideSFX;          // Wooden scraping sound during crate movement
 
     private bool isMoving = false;
     private bool hasPushed = false;
@@ -87,6 +100,7 @@ public class PushPullManager : MonoBehaviour
 
     void Update()
     {
+        // Redraw sagging/taut rope each frame while active
         if (pullRope != null && pullRope.gameObject.activeInHierarchy)
         {
             DrawRope();
@@ -103,9 +117,9 @@ public class PushPullManager : MonoBehaviour
         }
     }
 
+    // --- Displays AR Scene UI & Starts Intro ---
     public void ShowUI()
     {
-        // Safety Lock
         if (!gameObject.activeInHierarchy || theCrate == null || !theCrate.gameObject.activeInHierarchy) return; 
 
         InitializeState(); 
@@ -131,7 +145,6 @@ public class PushPullManager : MonoBehaviour
 
         if (pushArrow != null) pushArrow.SetActive(false);
         if (pullArrow != null) pullArrow.SetActive(false);
-        
         if (pullRope != null) pullRope.gameObject.SetActive(false);
 
         foreach (GameObject uiElement in lesson1ElementsToHide)
@@ -145,7 +158,6 @@ public class PushPullManager : MonoBehaviour
 
     public void HideUI()
     {
-        // Safety Lock
         if (!gameObject.activeInHierarchy || theCrate == null || !theCrate.gameObject.activeInHierarchy) return;
 
         if (lesson2UIContainer != null) lesson2UIContainer.SetActive(false);
@@ -163,13 +175,12 @@ public class PushPullManager : MonoBehaviour
         }
     }
 
+    // --- Action: Push Crate Away ---
     public void OnPushTapped()
     {
         if (isMoving || theCrate == null) return; 
         
-        // --- HAPTIC VIBRATION ADDED HERE ---
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
-        
         hasPushed = true;
 
         if (pushButton != null) pushButton.SetActive(false); 
@@ -181,13 +192,12 @@ public class PushPullManager : MonoBehaviour
         StartCoroutine(JuicySlideRoutine(targetPosition, pushArrow, true)); 
     }
 
+    // --- Action: Pull Crate Back ---
     public void OnPullTapped()
     {
         if (isMoving || theCrate == null) return; 
         
-        // --- HAPTIC VIBRATION ADDED HERE ---
         HapticFeedbackManager.TriggerSubtleHaptic(40L);
-        
         hasPulled = true;
 
         if (pullButton != null) pullButton.SetActive(false); 
@@ -199,9 +209,9 @@ public class PushPullManager : MonoBehaviour
         StartCoroutine(JuicySlideRoutine(targetPosition, pullArrow, false));
     }
 
+    // --- Action: Advance to 2D Ramp/Pulley Quiz ---
     public void OnNextButtonTapped()
     {
-        // 1. Hide the UI
         if (lesson2UIContainer != null) lesson2UIContainer.SetActive(false);
         if (subtitleText_EN != null) subtitleText_EN.gameObject.SetActive(false);
         if (subtitleText_SN != null) subtitleText_SN.gameObject.SetActive(false);
@@ -211,11 +221,10 @@ public class PushPullManager : MonoBehaviour
 
         if (audioPlayer != null) audioPlayer.Stop();
 
-        // 2. Start the Quiz!
+        // Launch 2D Quiz
         if (lesson2QuizPanel_Q1 != null) lesson2QuizPanel_Q1.SetActive(true);
 
-        // --- THE FIX: KILL THE ZOMBIE SCENE ---
-        // 3. Completely shut down this AR interaction folder so Vuforia can't trigger it anymore!
+        // Deactivate this scene so AR tracking doesn't conflict
         gameObject.SetActive(false);
     }
 
@@ -241,6 +250,7 @@ public class PushPullManager : MonoBehaviour
         if (topInstruction_SN != null) topInstruction_SN.text = textSI;
     }
 
+    // Smoothly slides crate with realistic tilting and directional arrow display
     private IEnumerator JuicySlideRoutine(Vector3 targetPos, GameObject activeArrow, bool isPushing)
     {
         isMoving = true;
@@ -278,6 +288,7 @@ public class PushPullManager : MonoBehaviour
         isMoving = false;
         isCurrentlyPulling = false; 
 
+        // Toggle buttons for the next action
         if (isPushing)
         {
             if (pullButton != null) pullButton.SetActive(true);
@@ -292,6 +303,7 @@ public class PushPullManager : MonoBehaviour
         CheckProgress();
     }
 
+    // Draws catenary rope sag when slack, straight line when taut
     private void DrawRope()
     {
         if (pullRope == null || ropeAnchor == null || theCrate == null) return;
@@ -327,6 +339,7 @@ public class PushPullManager : MonoBehaviour
         }
     }
 
+    // Once both push and pull have been tested, unlock the Next button
     private void CheckProgress()
     {
         if (hasPushed && hasPulled && nextButton != null)
@@ -335,33 +348,28 @@ public class PushPullManager : MonoBehaviour
         }
     }
 
-    // --- NEW: Contextual Retry Method for the AR Part ---
+    // --- Retry / Reset Experiment ---
     public void ResetExperiment()
     {
-        // 1. Analytics
         if (CircuitAnalyticsManager.Instance != null)
         {
             CircuitAnalyticsManager.Instance.RecordRetry();
         }
 
-        // 2. Stop everything
         StopAllCoroutines();
         if (audioPlayer != null) audioPlayer.Stop();
 
-        // 3. Reset internal state
         isMoving = false;
         hasPushed = false;
         hasPulled = false;
         isCurrentlyPulling = false;
 
-        // 4. Reset Crate
         if (theCrate != null && isInitialized)
         {
             theCrate.localPosition = startingPosition;
             theCrate.localRotation = startingRotation;
         }
 
-        // 5. Reset UI
         if (pushButton != null) pushButton.SetActive(true);
         if (pullButton != null) pullButton.SetActive(false);
         if (nextButton != null) nextButton.SetActive(false);
@@ -369,7 +377,6 @@ public class PushPullManager : MonoBehaviour
         if (pullArrow != null) pullArrow.SetActive(false);
         if (pullRope != null) pullRope.gameObject.SetActive(false);
 
-        // 6. Play instructions again
         PlayAudioAndText(introInstructionEN, introInstructionSI, introTextEN, introTextSI);
         UpdateTopInstruction(topTextIntroEN, topTextIntroSI);
     }
